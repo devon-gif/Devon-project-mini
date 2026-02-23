@@ -1,0 +1,83 @@
+/* ── Dark mode global overrides ──────────────────────────── */
+/* These remap hardcoded Tailwind utilities used across all   */
+/* pages/components so dark mode works without editing every  */
+/* file individually. Brand colors (yellow, blue CTAs) are    */
+/* preserved as-is.                                           */
+
+/* Backgrounds */
+.dark .bg-white { background-color: var(--card) !important; }
+.dark [class*="bg-[#FAFBFF]"] { background-color: var(--background) !important; }
+.dark .bg-gray-50 { background-color: #181B26 !important; }
+.dark .bg-gray-100 { background-color: #1E2231 !important; }
+.dark .bg-gray-200 { background-color: #252A3A !important; }
+.dark .bg-gray-800 { background-color: #0B0D14 !important; }
+
+/* Text */
+.dark .text-gray-900 { color: #F3F4F6 !important; }
+.dark .text-gray-800 { color: #E5E7EB !important; }
+.dark .text-gray-700 { color: #D1D5DB !important; }
+.dark .text-gray-600 { color: #B0B5C0 !important; }
+.dark .text-gray-500 { color: #9CA3AF !important; }
+.dark .text-gray-400 { color: #6B7280 !important; }
+.dark .text-gray-300 { color: #4B5563 !important; }
+
+/* Borders */
+.dark .border-gray-200 { border-color: #252A3A !important; }
+.dark .border-gray-100 { border-color: #1E2231 !important; }
+.dark .border-gray-300 { border-color: #374151 !important; }
+
+/* Tinted backgrounds */
+.dark .bg-blue-50 { background-color: #172554 !important; }
+.dark .bg-blue-100 { background-color: #1E3A5F !important; }
+.dark .bg-red-50 { background-color: #3B1118 !important; }
+.dark .bg-emerald-50 { background-color: #0D3326 !important; }
+.dark .bg-amber-50 { background-color: #3D2E0A !important; }
+.dark .bg-purple-50 { background-color: #2E1065 !important; }
+
+/* Tinted borders */
+.dark .border-blue-200 { border-color: #1E3A5F !important; }
+.dark .border-blue-100 { border-color: #172554 !important; }
+.dark .border-emerald-200 { border-color: #0D3326 !important; }
+.dark .border-emerald-100 { border-color: #0D3326 !important; }
+.dark .border-amber-200 { border-color: #3D2E0A !important; }
+.dark .border-amber-100 { border-color: #3D2E0A !important; }
+.dark .border-red-200 { border-color: #3B1118 !important; }
+.dark .border-purple-200 { border-color: #581C87 !important; }
+
+/* Tinted text — brighten for dark */
+.dark .text-blue-600 { color: #60A5FA !important; }
+.dark .text-blue-700 { color: #93C5FD !important; }
+.dark .text-emerald-600 { color: #34D399 !important; }
+.dark .text-emerald-700 { color: #6EE7B7 !important; }
+.dark .text-amber-600 { color: #FBBF24 !important; }
+.dark .text-amber-700 { color: #FCD34D !important; }
+.dark .text-red-500 { color: #F87171 !important; }
+.dark .text-red-700 { color: #FCA5A5 !important; }
+.dark .text-purple-600 { color: #C084FC !important; }
+
+/* Hardcoded brand link colors — brighten in dark */
+.dark [class*="text-[#2563EB]"] { color: #60A5FA !important; }
+.dark [class*="text-[#8B6914]"] { color: #FBBF24 !important; }
+
+/* Hardcoded bg-[#FFF9DB] (accent chip) */
+.dark [class*="bg-[#FFF9DB]"] { background-color: #33290A !important; }
+
+/* Inputs in dark */
+.dark input,
+.dark textarea,
+.dark select {
+  color: #E5E7EB !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #4B5563 !important;
+}
+.dark select option {
+  background-color: #141722;
+  color: #E5E7EB;
+}
+
+/* Scrollbar */
+.dark ::-webkit-scrollbar { width: 6px; }
+.dark ::-webkit-scrollbar-track { background: var(--background); }
+.dark ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }

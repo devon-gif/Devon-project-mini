@@ -1,23 +1,44 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+import path from "path";
+
+dotenv.config({ path: path.join(process.cwd(), ".env.local") });
 
 type AccountInput = {
   name: string;
   domain?: string | null;
-  tier?: string | null;   // "P0" | "P1" | "P2"
+  tier?: string | null; // "P0" | "P1" | "P2"
   status?: string | null; // "Prospecting" | "Active" | "Nurturing"
   score?: number | null;
 };
 
 export async function POST(request: Request) {
-  // simple protection
-  const token = request.headers.get("x-import-token");
-  if (!process.env.IMPORT_TOKEN || token !== process.env.IMPORT_TOKEN) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token =
+    request.headers.get("x-import-token") ||
+    request.headers.get("x-import-token");
+
+  // IMPORTANT: envToken should now resolve from absolute .env.local path
+  const envToken = process.env.IMPORT_TOKEN;
+
+  if (!envToken || !token || token !== envToken) {
+    return NextResponse.json(
+      {
+        error: "Unauthorized",
+        debug: {
+          header_present: Boolean(token),
+          env_present: Boolean(envToken),
+          cwd: process.cwd(),
+          loaded_path: path.join(process.cwd(), ".env.local"),
+        },
+      },
+      { status: 401 }
+    );
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
   if (!supabaseUrl || !serviceKey) {
     return NextResponse.json(
       { error: "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" },
@@ -29,10 +50,8 @@ export async function POST(request: Request) {
     auth: { persistSession: false },
   });
 
-  let body: any;
-  try {
-    body = await request.json();
-  } catch {
+  const body = await request.json().catch(() => null);
+  if (!body) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
@@ -44,7 +63,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // normalize + validate
   const rows = accounts
     .map((a) => ({
       name: (a.name || "").trim(),
@@ -68,8 +86,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({
-    inserted: data?.length ?? 0,
-    accounts: data ?? [],
-  });
+  return NextResponse.json({ inserted: data?.length ?? 0, accounts: data ?? [] });
 }
