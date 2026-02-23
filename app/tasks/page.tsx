@@ -34,7 +34,7 @@ export default async function TasksPage() {
   return (
     <div style={{ maxWidth: 1200, margin: "40px auto", padding: 24 }}>
       <h1 style={{ fontSize: 28, fontWeight: 900 }}>Tasks</h1>
-      <p style={{ opacity: 0.7, marginTop: 6 }}>Add tasks + move across columns (drag/drop next).</p>
+      <p style={{ opacity: 0.7, marginTop: 6 }}>Add tasks + move across columns.</p>
 
       <TaskBoardClient initialTasks={(tasks ?? []) as any} accounts={(accounts ?? []) as any} />
     </div>

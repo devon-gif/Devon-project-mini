@@ -105,7 +105,7 @@ export default function TaskBoardClient({
 
             <div style={{ opacity: 0.75, fontSize: 12, marginTop: 4 }}>
               {t.accounts?.name ? `${t.accounts.name} • ` : ""}
-              {t.priority?.toUpperCase()}
+              {(t.priority || "warm").toUpperCase()}
               {t.due_date ? ` • due ${t.due_date}` : ""}
             </div>
           </div>
@@ -117,7 +117,6 @@ export default function TaskBoardClient({
 
   return (
     <div>
-      {/* Add Task */}
       <div style={{ border: "1px solid #333", borderRadius: 12, padding: 14, marginTop: 16 }}>
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Add Task</div>
 
@@ -152,7 +151,6 @@ export default function TaskBoardClient({
         </div>
       </div>
 
-      {/* Kanban */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 16 }}>
         <Column title="To Do" items={grouped.todo} onNext={(id) => moveTask(id, "in_progress")} />
         <Column title="In Progress" items={grouped.inProgress} onNext={(id) => moveTask(id, "done")} />
