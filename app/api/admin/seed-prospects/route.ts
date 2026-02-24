@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         const { data: existing } = await admin.from("accounts").select("id").eq("domain", domain).maybeSingle();
         if (existing?.id) {
           accountId = existing.id;
-          accountKeyToId.set(accountKey, accountId);
+          accountKeyToId.set(accountKey, existing.id);
           await admin.from("accounts").update(accountPayload).eq("id", accountId);
           accountsUpdated++;
         }
