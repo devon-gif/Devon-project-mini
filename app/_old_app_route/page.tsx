@@ -54,7 +54,8 @@ export default async function MissionControl() {
   const hot = (openTasks ?? []).filter((t: any) => t.priority === "hot");
   const warm = (openTasks ?? []).filter((t: any) => t.priority !== "hot");
 
-  const email = data.user?.email ?? "you";
+  const user = data.user as { email?: string | null } | null;
+  const email = user?.email ?? "you";
 
   return (
     <div style={{ maxWidth: 1200, margin: "40px auto", padding: 24 }}>
