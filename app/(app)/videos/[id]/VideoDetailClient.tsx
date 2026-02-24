@@ -346,7 +346,7 @@ export function VideoDetailClient({
               <div className="space-y-2">
                 <textarea
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNote(e.target.value)}
                   placeholder="Add a note about this video..."
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#2563EB] resize-none h-20"
                 />
