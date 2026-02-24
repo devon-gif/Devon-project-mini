@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         }
         return NextResponse.json({
           email,
-          inviteLink: linkData?.properties?.action_link ?? linkData?.action_link ?? null,
+          inviteLink: linkData?.properties?.action_link ?? null,
           message: "User already exists; recovery link generated.",
         });
       }
