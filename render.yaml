@@ -1,0 +1,10 @@
+# Render Blueprint: twill-mini-crm
+# See https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: twill-mini-crm
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
