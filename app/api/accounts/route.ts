@@ -30,7 +30,8 @@ export async function GET() {
     .in("account_id", ids)
     .order("account_id");
 
-  const firstByAccount = new Map<string, (typeof people)[0]>();
+  type PersonRow = NonNullable<typeof people>[number];
+  const firstByAccount = new Map<string, PersonRow>();
   for (const p of people ?? []) {
     if (!firstByAccount.has(p.account_id)) firstByAccount.set(p.account_id, p);
   }
