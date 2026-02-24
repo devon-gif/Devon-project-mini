@@ -39,7 +39,8 @@
     "**/*.mts"
   ],
   "exclude": [
+    "_figma_ui",
     "node_modules",
-    "_figma_ui"
+    "types"
   ]
 }
