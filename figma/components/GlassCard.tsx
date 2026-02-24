@@ -5,6 +5,7 @@ interface GlassCardProps {
   className?: string;
   hover?: boolean;
   onClick?: () => void;
+  key?: React.Key;
 }
 
 export function GlassCard({ children, className = '', hover = false, onClick }: GlassCardProps) {
