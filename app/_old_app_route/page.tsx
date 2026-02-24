@@ -16,7 +16,7 @@ type Task = {
 export default async function MissionControl() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login");
+  if (!data?.user) redirect("/login");
 
   const admin = createAdminClient();
 
