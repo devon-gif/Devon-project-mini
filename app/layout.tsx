@@ -1,3 +1,4 @@
+/// <reference path="../next-env.d.ts" />
 import "./globals.css";
 
 export const metadata = {

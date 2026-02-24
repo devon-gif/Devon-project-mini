@@ -1,5 +1,6 @@
 "use client";
 
+/// <reference path="../../next-env.d.ts" />
 import React from "react";
 import { Sidebar } from "@/figma/components/layout/Sidebar";
 import { Topbar } from "@/figma/components/layout/Topbar";

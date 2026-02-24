@@ -13,7 +13,6 @@ export default function LoginClient() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,11 +29,11 @@ export default function LoginClient() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: eTrim,
         password,
       });
-      if (error) throw error;
+      if (signInError) throw signInError;
 
       router.replace(redirectTo);
       router.refresh();
