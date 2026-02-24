@@ -9,7 +9,7 @@ import {
   Clock, ChevronRight, Flame,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'next/navigation';
 
 const kpis = [
   { label: 'Accounts Touched', value: kpiData.accountsTouched, change: kpiData.accountsTouchedChange, icon: Building2, color: '#2563EB' },
@@ -19,7 +19,7 @@ const kpis = [
 ];
 
 export function Dashboard() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const todayTasks = tasks.filter(t => t.status !== 'done').slice(0, 4);
   const hotAccounts = accounts.filter(a => a.signalScore >= 80).sort((a, b) => b.signalScore - a.signalScore);
   const recentEmails = emailThreads.filter(t => t.unread).slice(0, 3);
@@ -101,7 +101,7 @@ export function Dashboard() {
               <div
                 key={task.id}
                 className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-3 cursor-pointer hover:bg-gray-100/60 transition-colors"
-                onClick={() => navigate('/tasks')}
+                onClick={() => router.push('/tasks')}
               >
                 <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${task.priority === 'high' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>
                   {task.type === 'call' ? <Phone className="h-3 w-3" /> :
@@ -134,7 +134,7 @@ export function Dashboard() {
               <Flame className="h-4 w-4 text-[#FFD600]" />
               <h3 className="text-gray-800">Hot Accounts</h3>
             </div>
-            <button onClick={() => navigate('/accounts')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
+            <button onClick={() => router.push('/accounts')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
               View all <ChevronRight className="h-3 w-3" />
             </button>
           </div>
@@ -142,7 +142,7 @@ export function Dashboard() {
             {hotAccounts.map((account) => (
               <div
                 key={account.id}
-                onClick={() => navigate(`/accounts/${account.id}`)}
+                onClick={() => router.push(`/accounts/${account.id}`)}
                 className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 p-3 cursor-pointer hover:bg-gray-100/60 transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -177,7 +177,7 @@ export function Dashboard() {
               <Mail className="h-4 w-4 text-[#2563EB]" />
               <h3 className="text-gray-800">Recent Emails</h3>
             </div>
-            <button onClick={() => navigate('/inbox')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
+            <button onClick={() => router.push('/inbox')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
               Open Inbox <ChevronRight className="h-3 w-3" />
             </button>
           </div>
@@ -185,7 +185,7 @@ export function Dashboard() {
             {recentEmails.map((thread) => (
               <div
                 key={thread.id}
-                onClick={() => navigate('/inbox')}
+                onClick={() => router.push('/inbox')}
                 className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-3 cursor-pointer hover:bg-gray-100/60 transition-colors"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs text-blue-600" style={{ fontWeight: 500 }}>

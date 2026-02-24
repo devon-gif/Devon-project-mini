@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,7 +15,7 @@ const shortcuts = [
   { key: 'E', label: 'Inbox', description: 'Open email inbox', icon: Mail, route: '/inbox' },
   { key: 'T', label: 'Tasks', description: 'View task board', icon: CheckSquare, route: '/tasks' },
   { key: 'A', label: 'Accounts', description: 'Browse accounts', icon: Building2, route: '/accounts' },
-  { key: 'M', label: 'Mission Control', description: 'Go to dashboard', icon: Compass, route: '/' },
+  { key: 'M', label: 'Mission Control', description: 'Go to dashboard', icon: Compass, route: '/app' },
   { key: 'G', label: 'Videos', description: 'Video outreach dashboard', icon: Video, route: '/videos' },
   { key: 'D', label: 'Dark Mode', description: 'Toggle light/dark theme', icon: Moon },
 ];
@@ -30,7 +30,7 @@ interface KeyboardShortcutsProps {
 }
 
 export function KeyboardShortcuts({ onOpenCommandPalette }: KeyboardShortcutsProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toggleTheme } = useTheme();
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -55,27 +55,27 @@ export function KeyboardShortcuts({ onOpenCommandPalette }: KeyboardShortcutsPro
         case 'v':
           e.preventDefault();
           toast('New Video', { description: 'Opening video creator...', icon: <Video className="h-4 w-4 text-amber-600" /> });
-          navigate('/videos/create');
+          router.push('/videos/create');
           break;
         case 'e':
           e.preventDefault();
-          navigate('/inbox');
+          router.push('/inbox');
           break;
         case 't':
           e.preventDefault();
-          navigate('/tasks');
+          router.push('/tasks');
           break;
         case 'a':
           e.preventDefault();
-          navigate('/accounts');
+          router.push('/accounts');
           break;
         case 'm':
           e.preventDefault();
-          navigate('/');
+          router.push('/app');
           break;
         case 'g':
           e.preventDefault();
-          navigate('/videos');
+          router.push('/videos');
           break;
         case 'd':
           e.preventDefault();
@@ -96,7 +96,7 @@ export function KeyboardShortcuts({ onOpenCommandPalette }: KeyboardShortcutsPro
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [navigate, isInputFocused, helpOpen, toggleTheme]);
+  }, [router, isInputFocused, helpOpen, toggleTheme]);
 
   return (
     <>
@@ -159,7 +159,7 @@ export function KeyboardShortcuts({ onOpenCommandPalette }: KeyboardShortcutsPro
                       <button
                         key={s.key}
                         onClick={() => {
-                          if (s.route) navigate(s.route);
+                          if (s.route) router.push(s.route);
                           if (s.key === 'D') toggleTheme();
                           setHelpOpen(false);
                         }}

@@ -1,1 +1,11 @@
-@import "../styles/index.css";
+/* Figma CSS bundle — same order as _figma_ui/src/styles/index.css */
+@import "../styles/fonts.css";
+@import "../styles/tailwind.css";
+@import "../styles/theme.css";
+@import "../styles/dark-overrides.css";
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+

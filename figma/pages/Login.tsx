@@ -1,13 +1,26 @@
 "use client";
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
+import { createClient } from '@/lib/supabase/client';
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Sun, Moon } from 'lucide-react';
-const twillLogo = "/figma-assets/twill-logo.png";
+const twillLogo = "/figma/cfb522460dc27b08bb7705cf0b5b5ed312f6b215.png";
+
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+const DEMO_AUTH_COOKIE = "demo-auth";
+
+function setDemoAuthCookie() {
+  if (typeof document === "undefined") return;
+  document.cookie = `${DEMO_AUTH_COOKIE}=1; path=/; max-age=86400; SameSite=Lax`;
+}
 
 export function Login() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") || "/app";
+
   const [email, setEmail] = useState('alex@withtwill.com');
   const [password, setPassword] = useState('demo123');
   const [showPassword, setShowPassword] = useState(false);
@@ -15,55 +28,82 @@ export function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const navigate = useNavigate();
+  const hasSupabase =
+    typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL.length > 0 &&
+    typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "string";
+  const supabase = useMemo(() => (hasSupabase ? createClient() : null), [hasSupabase]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const success = login(email, password);
-      if (success) {
-        navigate('/');
+    if (DEMO_MODE) {
+      if (email?.trim() && password) {
+        setDemoAuthCookie();
+        login(email, password);
+        router.push(redirectTo);
+        router.refresh();
       } else {
-        setError('Please enter valid credentials');
+        setError("Please enter email and password");
       }
       setLoading(false);
-    }, 600);
+      return;
+    }
+
+    if (!supabase) {
+      setError("Supabase is not configured. Set env vars or enable DEMO_MODE.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (signInError) throw signInError;
+      login(email, password);
+      router.push(redirectTo);
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Sign in failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-[#FAFBFF]">
-      {/* Subtle background pattern */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-[#FFD600]/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-[#2563EB]/8 blur-3xl" />
-      </div>
-
+    <div
+      className="flex h-screen w-screen items-center justify-center min-h-screen"
+      style={{
+        background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(255,255,255,0.95), #FAFBFF), #FAFBFF',
+      }}
+    >
       {/* Dark mode toggle */}
       <button
         onClick={toggleTheme}
-        className="absolute top-5 right-5 z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-all hover:bg-gray-50 hover:text-gray-700"
+        className="absolute top-5 right-5 z-20 flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-700"
       >
         {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
 
       <div className="relative z-10 w-full max-w-[420px] px-6">
-        {/* Logo */}
+        {/* Logo + title — Figma: Twill logo (blue) + BDR Mission Control */}
         <div className="flex flex-col items-center mb-8">
-          <div className="mb-4">
+          <div className="mb-3">
             <img
               src={twillLogo}
-              alt="Twill Logo"
-              className="h-14 w-auto object-contain"
+              alt="Twill"
+              className="h-12 w-auto object-contain"
             />
           </div>
-          <p className="text-sm text-gray-500">BDR Mission Control</p>
+          <p className="text-sm font-medium text-gray-600">BDR Mission Control</p>
         </div>
 
-        {/* Login card */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.06)] p-6">
+        {/* Login card — white, rounded, subtle shadow (lifted) */}
+        <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04),0_12px_40px_rgba(0,0,0,0.06)]">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
@@ -109,44 +149,48 @@ export function Login() {
               <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
             )}
 
-            {/* Remember + Forgot */}
+            {/* Remember + Forgot — Figma: green check, light blue Forgot link */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-[#2563EB] focus:ring-[#2563EB]/20" />
-                <span className="text-xs text-gray-500">Remember me</span>
+                <input
+                  type="checkbox"
+                  defaultChecked
+                  className="h-4 w-4 rounded border-gray-300 text-[#10B981] focus:ring-[#10B981]/30 accent-[#10B981]"
+                />
+                <span className="text-sm text-gray-600">Remember me</span>
               </label>
-              <button type="button" className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
+              <button type="button" className="text-sm text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
                 Forgot password?
               </button>
             </div>
 
-            {/* Submit */}
+            {/* Sign In — Figma: blue button, white text, arrow right */}
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-sm text-white transition-all hover:bg-[#1D4ED8] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-sm font-medium text-white transition-all hover:bg-[#1D4ED8] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               ) : (
                 <>
                   Sign In
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4 shrink-0" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Divider */}
+          {/* Divider — Figma: "or continue with" */}
           <div className="flex items-center gap-3 my-5">
             <div className="flex-1 border-t border-gray-200" />
             <span className="text-xs text-gray-400">or continue with</span>
             <div className="flex-1 border-t border-gray-200" />
           </div>
 
-          {/* Social logins */}
+          {/* Social — Figma: Google (G logo), Microsoft (window logo) */}
           <div className="flex gap-3">
-            <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <button type="button" className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               <svg className="h-4 w-4" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -155,7 +199,7 @@ export function Login() {
               </svg>
               Google
             </button>
-            <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+            <button type="button" className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="#0078D4">
                 <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
               </svg>
@@ -164,10 +208,12 @@ export function Login() {
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="mt-6 text-center text-xs text-gray-400">
-          Demo: any email + password works
-        </p>
+        {/* Footer — show when DEMO_MODE */}
+        {DEMO_MODE && (
+          <p className="mt-6 text-center text-xs text-gray-400">
+            Demo: any email + password works
+          </p>
+        )}
       </div>
     </div>
   );

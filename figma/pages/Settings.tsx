@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import {
@@ -310,6 +310,50 @@ function ImportExportSettings() {
 }
 
 function TeamSettings() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteResult, setInviteResult] = useState<{ email: string; inviteLink?: string | null; tempPassword?: string } | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/am-i-admin')
+      .then((r) => r.json())
+      .then((data: { isAdmin?: boolean }) => setIsAdmin(Boolean(data?.isAdmin)))
+      .catch(() => setIsAdmin(false));
+  }, []);
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError(null);
+    setInviteResult(null);
+    const email = inviteEmail.trim();
+    if (!email) return;
+    setInviteLoading(true);
+    try {
+      const res = await fetch('/api/invite-teammate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setInviteError(data?.error || 'Invite failed');
+        return;
+      }
+      setInviteResult({ email: data.email, inviteLink: data.inviteLink, tempPassword: data.tempPassword });
+      setInviteEmail('');
+    } catch {
+      setInviteError('Request failed');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
   const team = [
     { name: 'Alex Kim', email: 'alex@withtwill.com', role: 'Admin' },
     { name: 'Jordan Lee', email: 'jordan@withtwill.com', role: 'Member' },
@@ -327,6 +371,55 @@ function TeamSettings() {
           <Plus className="h-4 w-4" />Invite Member
         </button>
       </div>
+
+      {isAdmin && (
+        <GlassCard className="p-5 space-y-4">
+          <h3 className="text-gray-900 font-medium">Invite teammate</h3>
+          <p className="text-sm text-gray-500">Send an invite link to a new user. They will set their password via the link.</p>
+          <form onSubmit={handleInvite} className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[200px]">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="teammate@example.com"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:border-[#2563EB]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={inviteLoading}
+              className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm text-white hover:bg-[#1D4ED8] disabled:opacity-60"
+            >
+              {inviteLoading ? 'Sending…' : 'Send invite'}
+            </button>
+          </form>
+          {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
+          {inviteResult && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+              <p className="text-sm text-gray-700">Invite sent to <strong>{inviteResult.email}</strong></p>
+              {inviteResult.inviteLink && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input readOnly value={inviteResult.inviteLink} className="flex-1 min-w-0 rounded border border-gray-200 px-2 py-1.5 text-xs text-gray-600" />
+                  <button type="button" onClick={() => copyToClipboard(inviteResult.inviteLink!)} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+                    <Copy className="h-3 w-3" /> Copy link
+                  </button>
+                </div>
+              )}
+              {inviteResult.tempPassword && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-gray-500">Temp password:</span>
+                  <input readOnly value={inviteResult.tempPassword} className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-600" />
+                  <button type="button" onClick={() => copyToClipboard(inviteResult.tempPassword!)} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+                    <Copy className="h-3 w-3" /> Copy
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </GlassCard>
+      )}
+
       <GlassCard className="overflow-hidden">
         {team.map((member, i) => (
           <div key={member.email} className={`flex items-center justify-between px-4 py-3.5 ${i < team.length - 1 ? 'border-b border-gray-100' : ''}`}>

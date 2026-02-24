@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { VideoStatusChip } from '../components/VideoStatusChip';
 import { CopyButton } from '../components/CopyButton';
@@ -32,7 +32,7 @@ const eventConfig: Record<string, { label: string; icon: typeof Send; color: str
 
 export function VideoDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [markedSent, setMarkedSent] = useState(false);
   const [note, setNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -98,7 +98,7 @@ export function VideoDetail() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/videos')}
+            onClick={() => router.push('/videos')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />

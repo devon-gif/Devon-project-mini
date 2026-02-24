@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { VideoStatusChip } from '../components/VideoStatusChip';
 import { CopyButton } from '../components/CopyButton';
-import { videoOutreaches, videoKpis } from '../data/videoData';
+import { videoKpis as mockKpis } from '../data/videoData';
 import type { VideoOutreach as VideoOutreachType } from '../data/videoData';
 import {
   Plus, Search, Play, Eye, MousePointerClick,
@@ -15,10 +15,87 @@ import {
 
 const filters = ['All', 'Draft', 'Processing', 'Ready', 'Sent', 'Viewed', 'Clicked', 'Booked'] as const;
 
+type ApiVideo = {
+  id: string;
+  title: string;
+  video_path?: string;
+  gif_path?: string;
+  status: string;
+  created_at?: string;
+  sent_at?: string | null;
+  public_token?: string | null;
+  recipient_name?: string | null;
+  recipient_company?: string | null;
+  cta_type?: string | null;
+  cta_url?: string | null;
+  stats_views?: number | null;
+  stats_clicks?: number | null;
+  stats_bookings?: number | null;
+  stats_watch_25?: number | null;
+  stats_watch_50?: number | null;
+  stats_watch_75?: number | null;
+  stats_watch_100?: number | null;
+  stats_avg_watch_percent?: number | null;
+  stats_watch_percent?: number | null;
+};
+
+function mapApiToCard(row: ApiVideo): VideoOutreachType & { public_token?: string } {
+  return {
+    id: row.id,
+    name: row.title || 'Untitled',
+    recipientId: '',
+    recipientName: row.recipient_name || '',
+    recipientTitle: '',
+    company: row.recipient_company || '',
+    accountId: '',
+    status: (row.status as VideoOutreachType['status']) || 'draft',
+    gifStyle: 'website-scroll',
+    personalization: { websiteUrl: '', highlightSection: '', autoScroll: true, overlayCallouts: true, addLogo: true, addNameLowerThird: true },
+    analytics: {
+      views: row.stats_views ?? 0,
+      clicks: row.stats_clicks ?? 0,
+      bookings: row.stats_bookings ?? 0,
+      avgWatchPercent: row.stats_avg_watch_percent ?? row.stats_watch_percent ?? 0,
+      events: [],
+    },
+    duration: 0,
+    createdAt: row.created_at || new Date().toISOString(),
+    ctaType: row.cta_type === 'forward' ? 'forward' : 'book_12_min',
+    ctaLabel: row.cta_type === 'forward' ? 'Forward to right person' : 'Book 12 minutes',
+    calendarProvider: 'cal',
+    landingPageSlug: row.public_token ?? undefined,
+    subjectLine: '',
+    public_token: row.public_token ?? undefined,
+  };
+}
+
 export function VideoOutreach() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [videos, setVideos] = useState<VideoOutreachType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/videos')
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data.videos) ? data.videos as ApiVideo[] : [];
+        setVideos(list.map(mapApiToCard));
+      })
+      .catch(() => setVideos([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const videoOutreaches = videos;
+  const sentVideosCount = videos.filter((v) => !['draft', 'processing', 'ready'].includes(v.status)).length;
+  const videoKpis = {
+    ...mockKpis,
+    totalCreated: videos.length,
+    totalSent: sentVideosCount,
+    totalViews: videos.reduce((a, v) => a + v.analytics.views, 0),
+    totalClicks: videos.reduce((a, v) => a + v.analytics.clicks, 0),
+  };
 
   const filtered = videoOutreaches.filter((v) => {
     if (activeFilter !== 'All' && v.status !== activeFilter.toLowerCase()) return false;
@@ -32,8 +109,6 @@ export function VideoOutreach() {
     return true;
   });
 
-  const sentVideos = videoOutreaches.filter((v) => !['draft', 'processing', 'ready'].includes(v.status));
-
   return (
     <div className="h-full overflow-y-auto p-6 space-y-6">
       {/* Header */}
@@ -41,11 +116,11 @@ export function VideoOutreach() {
         <div>
           <h1 className="text-gray-900">Video Outreach</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {videoOutreaches.length} videos &middot; {sentVideos.length} sent
+            {loading ? 'Loading…' : `${videoOutreaches.length} videos · ${sentVideosCount} sent`}
           </p>
         </div>
         <button
-          onClick={() => navigate('/videos/create')}
+          onClick={() => router.push('/videos/create')}
           className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm text-white hover:bg-[#1D4ED8] transition-all shadow-sm"
         >
           <Plus className="h-4 w-4" />
@@ -115,13 +190,25 @@ export function VideoOutreach() {
 
       {/* Video Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((video) => (
-          <VideoCard key={video.id} video={video} onClick={() => navigate(`/videos/${video.id}`)} />
-        ))}
+        {loading ? (
+          <p className="text-sm text-gray-500 col-span-full">Loading videos…</p>
+        ) : (
+          filtered.map((video) => {
+            const v = video as VideoOutreachType & { public_token?: string };
+            return (
+              <VideoCard
+                key={video.id}
+                video={video}
+                publicToken={v.public_token ?? video.landingPageSlug}
+                onClick={() => router.push(`/videos/${video.id}`)}
+              />
+            );
+          })
+        )}
 
         {/* Create new card */}
         <button
-          onClick={() => navigate('/videos/create')}
+          onClick={() => router.push('/videos/create')}
           className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 text-gray-400 hover:border-[#2563EB] hover:text-[#2563EB] hover:bg-blue-50/30 transition-all min-h-[240px]"
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 mb-3">
@@ -134,8 +221,17 @@ export function VideoOutreach() {
   );
 }
 
-function VideoCard({ video, onClick }: { video: VideoOutreachType; onClick: () => void }) {
-  const landingUrl = `https://watch.withtwill.com/${video.landingPageSlug || 'demo'}`;
+function VideoCard({
+  video,
+  publicToken,
+  onClick,
+}: {
+  video: VideoOutreachType;
+  publicToken?: string;
+  onClick: () => void;
+}) {
+  const base = typeof window !== 'undefined' ? window.location.origin : '';
+  const landingUrl = publicToken ? `${base}/share/${publicToken}` : (video.landingPageSlug ? `${base}/share/${video.landingPageSlug}` : '');
 
   return (
     <GlassCard className="overflow-hidden" hover onClick={onClick}>
@@ -247,7 +343,7 @@ function VideoCard({ video, onClick }: { video: VideoOutreachType; onClick: () =
         )}
 
         {/* Hover actions for ready status */}
-        {video.status === 'ready' && (
+        {video.status === 'ready' && publicToken && (
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
             <CopyButton
               text={landingUrl}
@@ -255,12 +351,24 @@ function VideoCard({ video, onClick }: { video: VideoOutreachType; onClick: () =
               label="Copy link"
               toastMessage="Landing page link copied"
             />
-            <CopyButton
-              text={`Subject: ${video.subjectLine || ''}`}
-              variant="ghost"
-              label="Copy snippet"
-              toastMessage="Email snippet copied"
-            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(landingUrl, '_blank');
+              }}
+              className="text-xs text-gray-500 hover:text-[#2563EB] transition-colors"
+            >
+              Preview
+            </button>
+            {video.subjectLine && (
+              <CopyButton
+                text={`Subject: ${video.subjectLine}`}
+                variant="ghost"
+                label="Copy snippet"
+                toastMessage="Email snippet copied"
+              />
+            )}
           </div>
         )}
 

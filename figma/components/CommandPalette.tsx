@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'next/navigation';
 import {
   Search, UserPlus, Mail, Phone, Building2, Inbox,
   CheckSquare, ArrowRight, Sparkles, Rocket,
@@ -22,10 +22,10 @@ const commands = [
   { id: 'log-call', icon: Phone, label: 'Log call', category: 'Actions', path: '/tasks' },
   { id: 'change-status', icon: RefreshCw, label: 'Change account status', category: 'Actions', path: '/accounts' },
   { id: 'create-task', icon: CheckSquare, label: 'Create follow-up task', category: 'Actions', path: '/tasks' },
-  { id: 'ai-draft', icon: Sparkles, label: 'AI: Draft outreach', category: 'AI Assistant', path: '/' },
+  { id: 'ai-draft', icon: Sparkles, label: 'AI: Draft outreach', category: 'AI Assistant', path: '/app' },
   { id: 'ai-summarize', icon: FileText, label: 'AI: Summarize thread', category: 'AI Assistant', path: '/inbox' },
-  { id: 'ai-tasks', icon: Tag, label: 'AI: Extract tasks', category: 'AI Assistant', path: '/' },
-  { id: 'mission', icon: Rocket, label: 'Go to Mission Control', category: 'Navigate', path: '/' },
+  { id: 'ai-tasks', icon: Tag, label: 'AI: Extract tasks', category: 'AI Assistant', path: '/app' },
+  { id: 'mission', icon: Rocket, label: 'Go to Mission Control', category: 'Navigate', path: '/app' },
   { id: 'accounts', icon: Building2, label: 'Go to Accounts', category: 'Navigate', path: '/accounts' },
   { id: 'videos', icon: Video, label: 'Go to Videos', category: 'Navigate', path: '/videos' },
   { id: 'inbox', icon: Inbox, label: 'Go to Inbox', category: 'Navigate', path: '/inbox' },
@@ -36,7 +36,7 @@ export function CommandPalette({ open, onClose, onOpenAddPerson }: CommandPalett
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const filtered = commands.filter(c =>
     c.label.toLowerCase().includes(query.toLowerCase()) ||
@@ -66,7 +66,7 @@ export function CommandPalette({ open, onClose, onOpenAddPerson }: CommandPalett
       onClose();
       onOpenAddPerson();
     } else if (cmd.path) {
-      navigate(cmd.path);
+      router.push(cmd.path);
       onClose();
     }
   };

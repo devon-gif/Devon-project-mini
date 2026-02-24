@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip, TierBadge } from '../components/StatusChip';
 import { accounts, people, tasks, emailThreads } from '../data/mockData';
@@ -13,7 +13,7 @@ import { useState } from 'react';
 
 export function AccountDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
 
   const account = accounts.find(a => a.id === id);
@@ -40,7 +40,7 @@ export function AccountDetail() {
   return (
     <div className="h-full overflow-y-auto p-6 space-y-5">
       {/* Back button */}
-      <button onClick={() => navigate('/accounts')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+      <button onClick={() => router.push('/accounts')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
         <ArrowLeft className="h-4 w-4" />
         Back to Accounts
       </button>
@@ -172,7 +172,7 @@ export function AccountDetail() {
             </button>
           </div>
           {accountPeople.map(person => (
-            <GlassCard key={person.id} className="p-4" hover onClick={() => navigate(`/people/${person.id}`)}>
+            <GlassCard key={person.id} className="p-4" hover onClick={() => router.push(`/people/${person.id}`)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-xs text-blue-600" style={{ fontWeight: 500 }}>
@@ -198,7 +198,7 @@ export function AccountDetail() {
           {accountEmails.length === 0 ? (
             <div className="text-center py-12 text-gray-400">No email threads yet</div>
           ) : accountEmails.map(thread => (
-            <GlassCard key={thread.id} className="p-4" hover onClick={() => navigate('/inbox')}>
+            <GlassCard key={thread.id} className="p-4" hover onClick={() => router.push('/inbox')}>
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-800 truncate">{thread.subject}</p>

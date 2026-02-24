@@ -1,15 +1,82 @@
 import crypto from "crypto";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getVideoPlaybackUrl } from "@/lib/supabase-storage";
+import { getVideoBySlug } from "@/lib/db";
+import ShareVideoClient from "../ShareVideoClient";
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const admin = createAdminClient();
 
+  // 1) Local (USE_LOCAL_VIDEOS): SQLite + public/uploads — path is same-origin e.g. /uploads/videos/xxx.mp4
+  try {
+    const video = getVideoBySlug(token);
+    if (video && video.video_path) {
+      return (
+        <ShareVideoClient
+          slug={video.slug}
+          recipientName={video.recipient_name}
+          recipientCompany={video.recipient_company}
+          videoPath={video.video_path}
+          ctaUrl={video.cta_url}
+          ctaLabel={video.cta_label}
+        />
+      );
+    }
+  } catch {
+    // SQLite not available or error — fall through
+  }
+
+  // 2) Supabase Storage: resolve by public_token, serve signed or public URL
+  try {
+    const admin = createAdminClient();
+    const { data: video, error } = await admin
+      .from("videos")
+      .select("id, title, video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status")
+      .eq("public_token", token)
+      .single();
+    if (!error && video?.video_path && video.status !== "draft" && video.status !== "processing") {
+      const videoUrl = await getVideoPlaybackUrl(admin, video.video_path);
+      if (videoUrl) {
+        return (
+          <ShareVideoClient
+            slug={token}
+            recipientName={video.recipient_name ?? null}
+            recipientCompany={video.recipient_company ?? null}
+            videoPath={videoUrl}
+            ctaUrl={video.cta_url ?? null}
+            ctaLabel={video.cta_label ?? null}
+          />
+        );
+      }
+    }
+  } catch {
+    // Supabase not configured or error — fall through to BDR share
+  }
+
+  // 3) BDR share link (shares table by token hash)
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return (
+      <div style={{ maxWidth: 560, margin: "80px auto", padding: 24, textAlign: "center" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Video not found</h1>
+        <p style={{ opacity: 0.8 }}>This link may be invalid or the video may have been removed.</p>
+      </div>
+    );
+  }
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
   const { data: share } = await admin.from("shares").select("*").eq("token_hash", tokenHash).maybeSingle();
 
-  if (!share) return notFound();
+  if (!share) {
+    return (
+      <div style={{ maxWidth: 560, margin: "80px auto", padding: 24, textAlign: "center" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Video not found</h1>
+        <p style={{ opacity: 0.8 }}>This link may be invalid or the video may have been removed.</p>
+      </div>
+    );
+  }
   if (share.expires_at && new Date(share.expires_at) < new Date()) return notFound();
 
   const { data: accounts } = await admin

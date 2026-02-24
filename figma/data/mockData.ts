@@ -13,6 +13,11 @@ export interface Account {
   tags: string[];
   peopleCount: number;
   signalScore: number;
+  /** Optional: from CSV/prospects for live links */
+  linkedinUrl?: string;
+  contactEmail?: string;
+  contactName?: string;
+  contactTitle?: string;
 }
 
 export interface Person {
@@ -89,7 +94,10 @@ export interface Sequence {
   replyRate: number;
 }
 
+import { twill100Prospects } from "./twill100Prospects";
+
 export const accounts: Account[] = [
+  ...(twill100Prospects as Account[]),
   {
     id: '1', company: 'Stripe', domain: 'stripe.com', tier: 'P0', industry: 'Fintech',
     status: 'Active', lastTouch: '2 hours ago', nextStep: 'Follow up on demo', owner: 'You',

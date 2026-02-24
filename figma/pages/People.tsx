@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { people } from '../data/mockData';
@@ -24,7 +24,7 @@ const replyVariant: Record<string, 'success' | 'warning' | 'default' | 'danger'>
 };
 
 export function People() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [seniorityFilter, setSeniorityFilter] = useState('All');
 
@@ -98,7 +98,7 @@ export function People() {
                 return (
                   <tr
                     key={person.id}
-                    onClick={() => navigate(`/people/${person.id}`)}
+                    onClick={() => router.push(`/people/${person.id}`)}
                     className="group border-b border-gray-100 cursor-pointer hover:bg-gray-50/80 transition-colors"
                   >
                     <td className="px-4 py-3">

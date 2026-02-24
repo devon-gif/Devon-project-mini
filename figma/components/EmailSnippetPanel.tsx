@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { CopyButton } from './CopyButton';
-import { Mail, Code, Type, Play, Copy, CheckCircle2 } from 'lucide-react';
+import { Mail, Code, Type, Play, Copy, CheckCircle2, Send, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface EmailSnippetPanelProps {
@@ -10,8 +10,14 @@ interface EmailSnippetPanelProps {
   company: string;
   subjectLine: string;
   landingPageSlug?: string;
+  /** Full URL to share page (e.g. origin + /share/slug). If not set, built from landingPageSlug. */
+  landingUrl?: string;
+  recipientEmail?: string;
+  videoId?: string;
   ctaLabel: string;
   senderName?: string;
+  /** Called after Mark as Sent (DB updated + event logged). */
+  onMarkedSent?: () => void;
 }
 
 const tabs = [
@@ -20,21 +26,35 @@ const tabs = [
   { id: 'plaintext', label: 'Plain Text', icon: Type },
 ] as const;
 
+function trackEmailEvent(videoId: string, type: string, meta?: Record<string, unknown>) {
+  fetch(`/api/videos/${videoId}/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, meta }),
+  }).catch(() => {});
+}
+
 export function EmailSnippetPanel({
   recipientName,
   company,
   subjectLine,
   landingPageSlug,
+  landingUrl: landingUrlProp,
+  recipientEmail,
+  videoId,
   ctaLabel,
   senderName = 'Alex',
+  onMarkedSent,
 }: EmailSnippetPanelProps) {
   const [activeTab, setActiveTab] = useState<'subject' | 'html' | 'plaintext'>('subject');
+  const [markedSent, setMarkedSent] = useState(false);
 
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const landingUrl = landingUrlProp || (landingPageSlug ? `${baseUrl}/share/${landingPageSlug}` : `${baseUrl}/share/demo`);
   const firstName = recipientName.split(' ')[0];
-  const landingUrl = `https://watch.withtwill.com/${landingPageSlug || 'demo'}`;
-  const gifUrl = `https://cdn.withtwill.com/gifs/${landingPageSlug || 'demo'}.gif`;
+  const gifUrl = landingPageSlug ? `${baseUrl}/uploads/gifs/${landingPageSlug}.gif` : `https://cdn.withtwill.com/gifs/${landingPageSlug || 'demo'}.gif`;
 
-  const subject = subjectLine || `Quick idea for ${company}, ${firstName}`;
+  const subject = subjectLine || `Quick idea for ${company}`;
 
   const htmlBlock = `<div style="max-width:520px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 16px;">
@@ -80,10 +100,47 @@ If you're not the right person, who should I talk to?
       const all = `Subject: ${subject}\n\n---\n\n${plainText}\n\n---\n\nHTML:\n${htmlBlock}`;
       await navigator.clipboard.writeText(all);
       toast.success('All snippets copied to clipboard');
+      if (videoId) trackEmailEvent(videoId, 'email_snippet_copied', { field: 'all' });
     } catch {
       toast.error('Failed to copy');
     }
   };
+
+  const handleOpenGmail = useCallback(() => {
+    const to = recipientEmail || '';
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainText)}`;
+    window.open(gmailUrl, '_blank');
+    if (videoId) trackEmailEvent(videoId, 'email_compose_opened', { provider: 'gmail' });
+  }, [recipientEmail, subject, plainText, videoId]);
+
+  const handleOpenMailto = useCallback(() => {
+    const to = recipientEmail || '';
+    const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainText)}`;
+    window.location.href = mailto;
+    if (videoId) trackEmailEvent(videoId, 'email_compose_opened', { provider: 'mailto' });
+  }, [recipientEmail, subject, plainText, videoId]);
+
+  const handleMarkAsSent = useCallback(async () => {
+    if (!videoId) return;
+    try {
+      const res = await fetch(`/api/videos/${videoId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'sent' }),
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      trackEmailEvent(videoId, 'email_marked_sent');
+      setMarkedSent(true);
+      toast.success('Marked as sent');
+      onMarkedSent?.();
+    } catch {
+      toast.error('Failed to mark as sent');
+    }
+  }, [videoId, onMarkedSent]);
+
+  const trackCopy = useCallback((field: string) => {
+    if (videoId) trackEmailEvent(videoId, 'email_snippet_copied', { field });
+  }, [videoId]);
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
@@ -93,13 +150,58 @@ If you're not the right person, who should I talk to?
           <Mail className="h-4 w-4 text-[#2563EB]" />
           <span className="text-sm text-gray-700" style={{ fontWeight: 500 }}>Email Snippet</span>
         </div>
-        <button
-          onClick={handleCopyAll}
-          className="flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs text-white hover:bg-[#1D4ED8] transition-colors"
-        >
-          <Copy className="h-3 w-3" />
-          Copy everything
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {videoId && recipientEmail && (
+            <>
+              <button
+                type="button"
+                onClick={handleOpenGmail}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open Gmail
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenMailto}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Mail className="h-3 w-3" />
+                Open in Mail
+              </button>
+              <CopyButton
+                text={landingUrl}
+                variant="ghost"
+                label="Copy link"
+                toastMessage="Share link copied"
+                onAfterCopy={() => trackCopy('link')}
+              />
+              {!markedSent && (
+                <button
+                  type="button"
+                  onClick={handleMarkAsSent}
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs text-white hover:bg-emerald-700 transition-colors"
+                >
+                  <Send className="h-3 w-3" />
+                  Mark as Sent
+                </button>
+              )}
+              {markedSent && (
+                <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Sent
+                </span>
+              )}
+            </>
+          )}
+          <button
+            onClick={handleCopyAll}
+            className="flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs text-white hover:bg-[#1D4ED8] transition-colors"
+          >
+            <Copy className="h-3 w-3" />
+            Copy everything
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -126,7 +228,7 @@ If you're not the right person, who should I talk to?
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
               <span className="text-sm text-gray-700">{subject}</span>
-              <CopyButton text={subject} variant="ghost" label="Copy" toastMessage="Subject line copied" />
+              <CopyButton text={subject} variant="ghost" label="Copy" toastMessage="Subject line copied" onAfterCopy={() => trackCopy('subject')} />
             </div>
             <p className="text-[11px] text-gray-400">Paste this as your email subject line in Gmail.</p>
           </div>
@@ -170,7 +272,7 @@ If you're not the right person, who should I talk to?
                 <code>{htmlBlock}</code>
               </pre>
               <div className="absolute top-2 right-2">
-                <CopyButton text={htmlBlock} variant="icon" toastMessage="HTML snippet copied" />
+                <CopyButton text={htmlBlock} variant="icon" toastMessage="HTML snippet copied" onAfterCopy={() => trackCopy('html')} />
               </div>
             </div>
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5">
@@ -187,7 +289,7 @@ If you're not the right person, who should I talk to?
                 {plainText}
               </pre>
               <div className="absolute top-2 right-2">
-                <CopyButton text={plainText} variant="icon" toastMessage="Plain text copied" />
+                <CopyButton text={plainText} variant="icon" toastMessage="Plain text copied" onAfterCopy={() => trackCopy('plain')} />
               </div>
             </div>
             <p className="text-[11px] text-gray-400">Use this for email clients that don't support HTML or as a fallback.</p>

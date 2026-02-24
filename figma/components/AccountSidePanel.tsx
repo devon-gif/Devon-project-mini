@@ -1,14 +1,18 @@
 "use client";
 
-import { X, Mail, Phone, Linkedin, Clock, CheckSquare, Video } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { X, Mail, Phone, Linkedin, Clock, CheckSquare, Video, Globe } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useRef } from 'react';
 import { StatusChip, TierBadge } from './StatusChip';
 import { people, emailThreads, tasks } from '../data/mockData';
 import type { Account } from '../data/mockData';
+import type { SidePanelPerson } from '../pages/Accounts';
 
 interface AccountSidePanelProps {
   account: Account | null;
   onClose: () => void;
+  /** When provided (from GET /api/accounts/[id]), show these contacts with live links */
+  people?: SidePanelPerson[];
 }
 
 const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'purple' | 'default'> = {
@@ -19,14 +23,17 @@ const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'purple' | 
   'Closed Lost': 'default',
 };
 
-export function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
-  const navigate = useNavigate();
+export function AccountSidePanel({ account, onClose, people: apiPeople }: AccountSidePanelProps) {
+  const router = useRouter();
+  const nextActionsRef = useRef<HTMLDivElement>(null);
 
   if (!account) return null;
 
-  const accountPeople = people.filter(p => p.accountId === account.id);
+  const accountPeople = apiPeople?.length ? apiPeople : people.filter(p => p.accountId === account.id);
   const accountEmails = emailThreads.filter(t => t.accountId === account.id);
   const accountTasks = tasks.filter(t => t.linkedAccount === account.company);
+  const websiteUrl = account.domain ? (account.domain.startsWith('http') ? account.domain : `https://${account.domain}`) : null;
+  const isApiPeople = Boolean(apiPeople?.length);
 
   return (
     <div className="flex h-full w-[420px] shrink-0 flex-col border-l border-gray-200 bg-white">
@@ -38,8 +45,12 @@ export function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
           </div>
           <div>
             <h3 className="text-gray-900">{account.company}</h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-gray-400">{account.domain}</span>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              {websiteUrl ? (
+                <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-[#2563EB] hover:underline">{account.domain}</a>
+              ) : (
+                <span className="text-xs text-gray-400">{account.domain}</span>
+              )}
               <TierBadge tier={account.tier} />
               <StatusChip label={account.status} variant={statusVariant[account.status] || 'default'} />
             </div>
@@ -65,7 +76,7 @@ export function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400">Industry</span>
-            <span className="text-xs text-gray-600">{account.industry}</span>
+            <span className="text-xs text-gray-600">{account.industry || '—'}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400">Last Touch</span>
@@ -73,7 +84,30 @@ export function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400">Next Step</span>
-            <span className="text-xs text-[#2563EB]">{account.nextStep}</span>
+            <button
+              type="button"
+              onClick={() => nextActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
+              className="text-xs text-[#2563EB] hover:underline text-left"
+            >
+              {account.nextStep}
+            </button>
+          </div>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {websiteUrl && (
+              <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+                <Globe className="h-3 w-3" /> Website
+              </a>
+            )}
+            {account.linkedinUrl && (
+              <a href={account.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+                <Linkedin className="h-3 w-3" /> LinkedIn
+              </a>
+            )}
+            {account.contactEmail && (
+              <a href={`mailto:${account.contactEmail}`} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+                <Mail className="h-3 w-3" /> Email
+              </a>
+            )}
           </div>
           {account.notes && (
             <div className="rounded-lg bg-gray-50 px-3 py-2 mt-2">
@@ -89,44 +123,78 @@ export function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
 
         {/* Contacts */}
         <div className="px-5 py-4 border-b border-gray-100">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Contacts ({accountPeople.length})</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Contacts ({accountPeople.length + (account.contactName || account.contactEmail ? 1 : 0)})</p>
           <div className="space-y-2.5">
-            {accountPeople.map(person => (
-              <div key={person.id} className="flex items-center justify-between group">
+            {(account.contactName || account.contactEmail) && accountPeople.length === 0 && (
+              <div className="flex items-center justify-between group">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[10px] text-blue-600" style={{ fontWeight: 500 }}>
-                    {person.name.split(' ').map(n => n[0]).join('')}
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[10px] text-blue-600 font-medium">
+                    {(account.contactName || '?').slice(0, 2)}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-800">{person.name}</p>
-                    <p className="text-[11px] text-gray-400">{person.title}</p>
+                    <p className="text-sm text-gray-800">{account.contactName || 'Contact'}</p>
+                    <p className="text-[11px] text-gray-400">{account.contactTitle || account.contactEmail || ''}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-                    <Mail className="h-3 w-3" />
-                  </button>
-                  {person.phone && (
-                    <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-                      <Phone className="h-3 w-3" />
-                    </button>
+                <div className="flex items-center gap-1">
+                  {account.contactEmail && (
+                    <a href={`mailto:${account.contactEmail}`} className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                      <Mail className="h-3 w-3" />
+                    </a>
                   )}
-                  {person.linkedin && (
-                    <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                  {account.linkedinUrl && (
+                    <a href={account.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                       <Linkedin className="h-3 w-3" />
-                    </button>
+                    </a>
                   )}
-                  <button
-                    onClick={() => navigate(`/videos/create?person=${person.id}`)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-blue-50 hover:text-[#2563EB]"
-                    title={`Send video to ${person.name}`}
-                  >
-                    <Video className="h-3 w-3" />
-                  </button>
                 </div>
               </div>
-            ))}
-            {accountPeople.length === 0 && (
+            )}
+            {accountPeople.map((person) => {
+              const name = (person as { name?: string }).name ?? '';
+              const title = (person as { title?: string }).title ?? '';
+              const email = (person as { email?: string }).email ?? null;
+              const linkedinUrl = (person as SidePanelPerson).linkedin_url ?? (person as { linkedin?: string }).linkedin ?? null;
+              const phone = (person as { phone?: string }).phone;
+              return (
+                <div key={person.id} className="flex items-center justify-between group">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[10px] text-blue-600" style={{ fontWeight: 500 }}>
+                      {String(name).split(' ').map(n => n[0]).join('') || '?'}
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-800">{name || 'Contact'}</p>
+                      <p className="text-[11px] text-gray-400">{title || email || ''}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {email && (
+                      <a href={`mailto:${email}`} className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600" title="Email">
+                        <Mail className="h-3 w-3" />
+                      </a>
+                    )}
+                    {phone && !isApiPeople && (
+                      <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                        <Phone className="h-3 w-3" />
+                      </button>
+                    )}
+                    {linkedinUrl && (
+                      <a href={linkedinUrl.startsWith('http') ? linkedinUrl : `https://${linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600" title="LinkedIn">
+                        <Linkedin className="h-3 w-3" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => router.push(`/videos/create?person=${person.id}`)}
+                      className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-blue-50 hover:text-[#2563EB]"
+                      title={`Send video to ${name}`}
+                    >
+                      <Video className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {accountPeople.length === 0 && !account.contactName && !account.contactEmail && (
               <p className="text-xs text-gray-400 text-center py-2">No contacts yet</p>
             )}
           </div>
@@ -152,7 +220,7 @@ export function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
         </div>
 
         {/* Tasks */}
-        <div className="px-5 py-4">
+        <div ref={nextActionsRef} className="px-5 py-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Next Actions</p>
           <div className="space-y-2">
             {accountTasks.filter(t => t.status !== 'done').map(task => (

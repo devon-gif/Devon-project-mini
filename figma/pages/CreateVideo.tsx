@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { VideoStatusChip } from '../components/VideoStatusChip';
@@ -25,8 +25,8 @@ const steps = [
 type ProcessingPhase = 'uploading' | 'generating_gif' | 'creating_landing' | 'done' | 'error';
 
 export function CreateVideo() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const prefilledPersonId = searchParams.get('person');
   const [currentStep, setCurrentStep] = useState(prefilledPersonId ? 1 : 1);
 
@@ -36,6 +36,7 @@ export function CreateVideo() {
   const [addCC, setAddCC] = useState(false);
 
   // Step 2
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
   const [fileSize, setFileSize] = useState('');
   const [fileDuration, setFileDuration] = useState('');
@@ -49,27 +50,50 @@ export function CreateVideo() {
   // Step 3
   const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>('uploading');
   const [progress, setProgress] = useState(0);
+  const [createdVideo, setCreatedVideo] = useState<{ id: string; public_token: string } | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [apiPeople, setApiPeople] = useState<Array<{ id: string; name: string; title: string; company: string; email: string }>>([]);
 
-  const filteredPeople = people.filter(
+  useEffect(() => {
+    fetch('/api/people')
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => {
+        if (Array.isArray(d?.people) && d.people.length) {
+          setApiPeople(
+            d.people.map((p: { id: string; name: string; title?: string; company?: string; email?: string }) => ({
+              id: p.id,
+              name: p.name,
+              title: p.title ?? '',
+              company: p.company ?? '',
+              email: p.email ?? '',
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const peopleList = apiPeople.length ? apiPeople : people;
+  const filteredPeople = peopleList.filter(
     (p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const person = people.find((p) => p.id === selectedPerson);
+  const person = peopleList.find((p) => p.id === selectedPerson);
 
   // Notify when person is pre-filled from URL
   useEffect(() => {
     if (prefilledPersonId) {
-      const p = people.find(pp => pp.id === prefilledPersonId);
+      const p = peopleList.find(pp => pp.id === prefilledPersonId);
       if (p) {
         toast.success(`Recipient pre-filled: ${p.name}`, {
           description: `${p.title} at ${p.company}`,
         });
       }
     }
-  }, [prefilledPersonId]);
+  }, [prefilledPersonId, peopleList]);
 
   // Auto-generate title
   useEffect(() => {
@@ -78,46 +102,101 @@ export function CreateVideo() {
     }
   }, [person, videoTitle]);
 
-  // Simulate processing
-  useEffect(() => {
-    if (currentStep !== 3) return;
-    setProcessingPhase('uploading');
-    setProgress(0);
-
-    const phases: { phase: ProcessingPhase; delay: number }[] = [
-      { phase: 'uploading', delay: 1200 },
-      { phase: 'generating_gif', delay: 2000 },
-      { phase: 'creating_landing', delay: 1500 },
-      { phase: 'done', delay: 0 },
-    ];
-
-    let timeout: ReturnType<typeof setTimeout>;
-    let currentIndex = 0;
-
-    const advancePhase = () => {
-      if (currentIndex < phases.length) {
-        setProcessingPhase(phases[currentIndex].phase);
-        setProgress(Math.round(((currentIndex + 1) / phases.length) * 100));
-        if (currentIndex < phases.length - 1) {
-          timeout = setTimeout(() => {
-            currentIndex++;
-            advancePhase();
-          }, phases[currentIndex].delay);
-        }
-      }
-    };
-
-    advancePhase();
-    return () => clearTimeout(timeout);
-  }, [currentStep]);
-
-  const handleFileDrop = useCallback(() => {
-    setFileName('prospect-video-2026.mp4');
-    setFileSize('12.4 MB');
-    setFileDuration('1:02');
-    setFileResolution('1920 x 1080');
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoFile(file);
+    setFileName(file.name);
+    setFileSize(file.size >= 1024 * 1024 ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `${(file.size / 1024).toFixed(1)} KB`);
+    setFileDuration('—');
+    setFileResolution('—');
     setFileUploaded(true);
+    e.target.value = '';
   }, []);
+
+  const handleGenerateClick = useCallback(async () => {
+    if (!person || !videoFile) return;
+    setGenerateError(null);
+    setCurrentStep(3);
+    setProcessingPhase('uploading');
+    setProgress(5);
+    const title = videoTitle.trim() || `${person.company} — ${person.name.split(' ')[0]}`;
+    const createPayload = {
+      title,
+      prospect_id: person.id,
+      recipient_name: person.name,
+      recipient_company: person.company,
+      recipient_email: person.email || '',
+      cta_type: ctaType === 'forward' || ctaType === 'reply' ? 'forward' : 'book',
+      cta_url: ctaType === 'book_12_min' ? calendarLink : '',
+      cta_label: ctaLabel || undefined,
+    };
+    try {
+      let videoId: string;
+      let public_token: string;
+
+      const createResFirst = await fetch('/api/videos/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createPayload),
+      });
+      if (createResFirst.ok) {
+        const { video } = await createResFirst.json();
+        videoId = video.id;
+        public_token = video.public_token;
+        setProgress(15);
+        const formData = new FormData();
+        formData.set('videoId', videoId);
+        formData.set('file', videoFile);
+        const uploadRes = await fetch('/api/videos/upload', { method: 'POST', body: formData });
+        if (!uploadRes.ok) {
+          const j = await uploadRes.json().catch(() => ({}));
+          throw new Error(j.error || 'Upload failed');
+        }
+      } else {
+        const formData = new FormData();
+        formData.set('file', videoFile);
+        const uploadRes = await fetch('/api/videos/upload', { method: 'POST', body: formData });
+        if (!uploadRes.ok) {
+          const j = await uploadRes.json().catch(() => ({}));
+          throw new Error(j.error || 'Upload failed');
+        }
+        const { storagePath } = await uploadRes.json();
+        setProgress(25);
+        setProcessingPhase('generating_gif');
+        const createRes = await fetch('/api/videos/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...createPayload, storagePath }),
+        });
+        if (!createRes.ok) {
+          const j = await createRes.json().catch(() => ({}));
+          throw new Error(j.error || 'Create failed');
+        }
+        const { video } = await createRes.json();
+        videoId = video.id;
+        public_token = video.public_token;
+      }
+
+      setProgress(50);
+      setProcessingPhase('creating_landing');
+      const gifRes = await fetch(`/api/videos/${videoId}/generate-gif`, { method: 'POST' });
+      const gifData = await gifRes.json().catch(() => ({}));
+      if (!gifRes.ok) {
+        throw new Error(gifData.error || 'GIF generation failed');
+      }
+      if (gifData.skipped && gifData.message) {
+        toast.info('GIF generation disabled in this environment (e.g. Vercel). Video is still shareable.');
+      }
+      setProgress(100);
+      setCreatedVideo({ id: videoId, public_token });
+      setProcessingPhase('done');
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Something went wrong');
+      setProcessingPhase('error');
+      toast.error('Generate failed');
+    }
+  }, [person, videoFile, videoTitle, ctaType, calendarLink, ctaLabel]);
 
   const canProceed = () => {
     if (currentStep === 1) return !!selectedPerson;
@@ -131,7 +210,7 @@ export function CreateVideo() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/videos')}
+            onClick={() => router.push('/videos')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -306,18 +385,27 @@ export function CreateVideo() {
             <GlassCard className="p-5">
               <h3 className="text-gray-800 mb-3">Upload Video</h3>
               {!fileUploaded ? (
-                <button
-                  onClick={handleFileDrop}
-                  className="w-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/50 p-12 text-gray-400 hover:border-[#2563EB] hover:text-[#2563EB] hover:bg-blue-50/20 transition-all cursor-pointer"
-                >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gray-100 mb-3">
-                    <Upload className="h-6 w-6" />
-                  </div>
-                  <p className="text-sm text-gray-600" style={{ fontWeight: 500 }}>
-                    Drop video here or click to browse
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">Supports MP4, MOV, WebM &middot; Max 500MB</p>
-                </button>
+                <>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    id="create-video-file"
+                    onChange={handleFileSelect}
+                  />
+                  <label
+                    htmlFor="create-video-file"
+                    className="w-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/50 p-12 text-gray-400 hover:border-[#2563EB] hover:text-[#2563EB] hover:bg-blue-50/20 transition-all cursor-pointer"
+                  >
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gray-100 mb-3">
+                      <Upload className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm text-gray-600" style={{ fontWeight: 500 }}>
+                      Drop video here or click to browse
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">Supports MP4, MOV, WebM &middot; Max 500MB</p>
+                  </label>
+                </>
               ) : (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-4">
                   <div className="flex items-center gap-3">
@@ -344,7 +432,8 @@ export function CreateVideo() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setFileUploaded(false)}
+                      type="button"
+                      onClick={() => { setVideoFile(null); setFileUploaded(false); setFileName(''); setFileSize(''); }}
                       className="text-xs text-gray-400 hover:text-red-500 transition-colors"
                     >
                       Remove
@@ -432,21 +521,33 @@ export function CreateVideo() {
         {currentStep === 3 && person && (
           <div className="space-y-5">
             {processingPhase !== 'done' && processingPhase !== 'error' && (
-              <ProcessingState phase={processingPhase} progress={progress} onComeBackLater={() => navigate('/videos')} />
+              <ProcessingState phase={processingPhase} progress={progress} onComeBackLater={() => router.push('/videos')} />
             )}
 
-            {processingPhase === 'done' && (
+            {processingPhase === 'done' && createdVideo && (
               <ReadyState
                 person={person}
                 videoTitle={videoTitle}
                 ctaLabel={ctaLabel}
-                onMarkSent={() => navigate('/videos')}
-                onOpenLanding={() => navigate('/videos/landing-preview')}
+                createdVideo={createdVideo}
+                onMarkSent={async () => {
+                  const res = await fetch(`/api/videos/${createdVideo.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'sent' }),
+                  });
+                  if (res.ok) toast.success('Marked as sent');
+                  router.push('/videos');
+                }}
+                onOpenLanding={() => {
+                  const url = typeof window !== 'undefined' ? `${window.location.origin}/share/${createdVideo.public_token}` : '';
+                  if (url) window.open(url, '_blank');
+                }}
               />
             )}
 
             {processingPhase === 'error' && (
-              <ErrorState onRetry={() => setProcessingPhase('uploading')} />
+              <ErrorState onRetry={() => { setProcessingPhase('uploading'); setGenerateError(null); }} />
             )}
           </div>
         )}
@@ -456,7 +557,7 @@ export function CreateVideo() {
           <div className="flex items-center justify-between pt-4 border-t border-gray-200">
             <button
               onClick={() => {
-                if (currentStep === 1) navigate('/videos');
+                if (currentStep === 1) router.push('/videos');
                 else setCurrentStep(currentStep - 1);
               }}
               className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
@@ -467,7 +568,8 @@ export function CreateVideo() {
             <div className="flex items-center gap-2">
               {currentStep === 2 && (
                 <button
-                  onClick={() => setCurrentStep(3)}
+                  type="button"
+                  onClick={handleGenerateClick}
                   disabled={!canProceed()}
                   className="flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm text-white hover:bg-[#1D4ED8] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -599,17 +701,18 @@ function ReadyState({
   person,
   videoTitle,
   ctaLabel,
+  createdVideo,
   onMarkSent,
   onOpenLanding,
 }: {
   person: (typeof people)[0];
   videoTitle: string;
   ctaLabel: string;
-  onMarkSent: () => void;
+  createdVideo: { id: string; public_token: string };
+  onMarkSent: () => void | Promise<void>;
   onOpenLanding: () => void;
 }) {
-  const slug = `twill-${person.name.split(' ')[0].toLowerCase()}-${person.company.toLowerCase().replace(/\s+/g, '')}`;
-  const landingUrl = `https://watch.withtwill.com/${slug}`;
+  const landingUrl = typeof window !== 'undefined' ? `${window.location.origin}/share/${createdVideo.public_token}` : '';
   const subjectLine = `Quick idea for ${person.company}, ${person.name.split(' ')[0]}`;
 
   return (
@@ -718,8 +821,12 @@ function ReadyState({
         recipientName={person.name}
         company={person.company}
         subjectLine={subjectLine}
-        landingPageSlug={slug}
+        landingPageSlug={createdVideo.public_token}
+        landingUrl={landingUrl}
+        recipientEmail={person.email}
+        videoId={createdVideo.id}
         ctaLabel={ctaLabel}
+        onMarkedSent={onMarkSent}
       />
 
       {/* Actions */}
@@ -730,13 +837,6 @@ function ReadyState({
         >
           <ExternalLink className="h-4 w-4" />
           Open landing page preview
-        </button>
-        <button
-          onClick={onMarkSent}
-          className="flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm text-white hover:bg-[#1D4ED8] transition-all shadow-sm"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          Mark as Sent
         </button>
       </div>
     </div>

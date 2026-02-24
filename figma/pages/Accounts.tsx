@@ -1,15 +1,126 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip, TierBadge } from '../components/StatusChip';
 import { AccountSidePanel } from '../components/AccountSidePanel';
-import { accounts } from '../data/mockData';
+import { accounts as mockAccounts } from '../data/mockData';
 import type { Account } from '../data/mockData';
 import {
-  Search, Filter, Plus, MoreHorizontal, ChevronDown,
-  Mail, Linkedin, Phone, CheckSquare,
+  Search, Filter, Plus, ChevronDown,
+  Mail, Linkedin, CheckSquare, Globe,
 } from 'lucide-react';
+
+type ApiAccount = {
+  id: string;
+  name: string;
+  domain: string | null;
+  website_url: string | null;
+  linkedin_url: string | null;
+  tier: string;
+  status: string;
+  score: number;
+  firstContact?: { name: string | null; title: string | null; email: string | null; linkedin_url: string | null } | null;
+};
+
+type ProspectRow = {
+  id: string;
+  companyName: string;
+  domain: string;
+  linkedinUrl?: string;
+  contactName?: string;
+  contactTitle?: string;
+  contactEmail?: string;
+  signalScore: number;
+  tier: 'P0' | 'P1' | 'P2';
+  status: string;
+  lastTouch: string;
+  nextAction: string;
+  industry?: string;
+  notes?: string;
+};
+
+function apiAccountToAccount(a: ApiAccount): Account {
+  let domain = a.domain ?? '';
+  if (!domain && a.website_url) {
+    try {
+      domain = new URL(a.website_url).hostname;
+    } catch {
+      domain = a.website_url.replace(/^https?:\/\//, '').split('/')[0] || '';
+    }
+  }
+  return {
+    id: a.id,
+    company: a.name || '—',
+    domain: domain || '—',
+    tier: (a.tier === 'P0' || a.tier === 'P1' || a.tier === 'P2' ? a.tier : 'P1') as 'P0' | 'P1' | 'P2',
+    industry: '—',
+    status: (a.status as Account['status']) || 'Prospecting',
+    lastTouch: 'No touch',
+    nextStep: 'Add first touch',
+    owner: 'You',
+    notes: '',
+    tags: [],
+    peopleCount: 0,
+    signalScore: a.score ?? 0,
+    linkedinUrl: a.linkedin_url ?? undefined,
+    contactEmail: a.firstContact?.email ?? undefined,
+    contactName: a.firstContact?.name ?? undefined,
+    contactTitle: a.firstContact?.title ?? undefined,
+  };
+}
+
+function apiProspectToAccount(p: { id: string; name: string; title?: string; company?: string; email?: string; linkedin_url?: string; website_url?: string }): Account {
+  const domain = (p.website_url || '').replace(/^https?:\/\//, '').trim() || (p.company ? `${(p.company as string).toLowerCase().replace(/\s+/g, '')}.com` : '');
+  return {
+    id: p.id,
+    company: p.company ?? '—',
+    domain: domain || '—',
+    tier: 'P1',
+    industry: '—',
+    status: 'Prospecting',
+    lastTouch: 'No touch',
+    nextStep: 'Add first touch',
+    owner: 'You',
+    notes: '',
+    tags: [],
+    peopleCount: 0,
+    signalScore: 75,
+    linkedinUrl: p.linkedin_url ?? undefined,
+    contactEmail: p.email ?? undefined,
+    contactName: p.name ?? undefined,
+    contactTitle: p.title ?? undefined,
+  };
+}
+
+function prospectToAccount(p: ProspectRow): Account {
+  const status = (p.status === 'Active' || p.status === 'Prospecting' || p.status === 'Nurturing' || p.status === 'Closed Won' || p.status === 'Closed Lost')
+    ? p.status
+    : 'Prospecting';
+  const domain = (p.domain || '').trim() || p.companyName.toLowerCase().replace(/\s+/g, '') + '.com';
+  const linkedinUrl = p.linkedinUrl?.trim()
+    ? (p.linkedinUrl.startsWith('http') ? p.linkedinUrl : `https://${p.linkedinUrl.replace(/^\/+/, '')}`)
+    : undefined;
+  return {
+    id: p.id,
+    company: p.companyName,
+    domain,
+    tier: p.tier,
+    industry: p.industry ?? '—',
+    status,
+    lastTouch: p.lastTouch,
+    nextStep: p.nextAction,
+    owner: 'You',
+    notes: p.notes ?? '',
+    tags: [],
+    peopleCount: 0,
+    signalScore: p.signalScore,
+    linkedinUrl: linkedinUrl || undefined,
+    contactEmail: p.contactEmail?.trim() || undefined,
+    contactName: p.contactName?.trim() || undefined,
+    contactTitle: p.contactTitle?.trim() || undefined,
+  };
+}
 
 const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'purple' | 'default'> = {
   'Active': 'success',
@@ -33,14 +144,78 @@ const filterOptions = {
   status: ['All', 'Active', 'Prospecting', 'Nurturing', 'Closed Won', 'Closed Lost'],
 };
 
+export type SidePanelPerson = {
+  id: string;
+  name: string | null;
+  title: string | null;
+  email: string | null;
+  linkedin_url?: string | null;
+};
+
 export function Accounts() {
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [sidePanelPeople, setSidePanelPeople] = useState<SidePanelPerson[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>(mockAccounts);
+
+  useEffect(() => {
+    if (!selectedAccount?.id) {
+      setSidePanelPeople([]);
+      return;
+    }
+    fetch(`/api/accounts/${selectedAccount.id}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { people?: SidePanelPerson[] }) => {
+        setSidePanelPeople(data?.people ?? []);
+      })
+      .catch(() => setSidePanelPeople([]));
+  }, [selectedAccount?.id]);
+
+  useEffect(() => {
+    fetch('/api/accounts')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { accounts?: ApiAccount[] }) => {
+        const list = data?.accounts ?? [];
+        if (list.length > 0) {
+          setAccounts(list.map(apiAccountToAccount));
+          return;
+        }
+        return Promise.reject(new Error('No accounts'));
+      })
+      .catch(() =>
+        fetch('/api/prospects')
+          .then((r) => (r.ok ? r.json() : Promise.reject()))
+          .then((data: { prospects?: Array<{ id: string; name: string; title?: string; company?: string; email?: string; linkedin_url?: string; website_url?: string }> }) => {
+            const list = data?.prospects ?? [];
+            if (list.length > 0) {
+              setAccounts(list.map((p) => apiProspectToAccount(p)));
+              return;
+            }
+            return fetch('/prospects.json').then((r) => (r.ok ? r.json() : Promise.reject()));
+          })
+          .then((raw: unknown) => {
+            if (!raw) {
+              setAccounts(mockAccounts);
+              return;
+            }
+            const arr = Array.isArray(raw) ? (raw as ProspectRow[]) : [];
+            setAccounts(arr.length > 0 ? arr.map(prospectToAccount) : mockAccounts);
+          })
+          .catch(() => setAccounts(mockAccounts))
+      );
+  }, []);
 
   const filtered = accounts.filter(a => {
-    if (search && !a.company.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const matchCompany = a.company.toLowerCase().includes(q);
+      const matchPerson = (a.contactName ?? '').toLowerCase().includes(q);
+      const matchTitle = (a.contactTitle ?? '').toLowerCase().includes(q);
+      const matchEmail = (a.contactEmail ?? '').toLowerCase().includes(q);
+      if (!matchCompany && !matchPerson && !matchTitle && !matchEmail) return false;
+    }
     if (tierFilter !== 'All' && a.tier !== tierFilter) return false;
     if (statusFilter !== 'All' && a.status !== statusFilter) return false;
     return true;
@@ -131,7 +306,19 @@ export function Accounts() {
                         </div>
                         <div>
                           <p className="text-sm text-gray-800">{account.company}</p>
-                          <p className="text-[11px] text-gray-400">{account.domain}</p>
+                          {account.domain ? (
+                            <a
+                              href={account.domain.startsWith('http') ? account.domain : `https://${account.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-gray-400 hover:text-[#2563EB] hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {account.domain}
+                            </a>
+                          ) : (
+                            <p className="text-[11px] text-gray-400">{account.domain}</p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -151,15 +338,47 @@ export function Accounts() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); }}>
-                          <Mail className="h-3.5 w-3.5" />
-                        </button>
-                        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); }}>
-                          <Linkedin className="h-3.5 w-3.5" />
-                        </button>
-                        <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); }}>
-                          <Phone className="h-3.5 w-3.5" />
-                        </button>
+                        {account.domain && (
+                          <a
+                            href={account.domain.startsWith('http') ? account.domain : `https://${account.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Website"
+                          >
+                            <Globe className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                        {account.contactEmail && (
+                          <a
+                            href={`mailto:${account.contactEmail}`}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Email"
+                          >
+                            <Mail className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                        {account.linkedinUrl && (
+                          <a
+                            href={account.linkedinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            onClick={(e) => e.stopPropagation()}
+                            title="LinkedIn"
+                          >
+                            <Linkedin className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                        {(!account.domain && !account.contactEmail && !account.linkedinUrl) && (
+                          <>
+                            <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); }}><Mail className="h-3.5 w-3.5" /></button>
+                            <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); }}><Linkedin className="h-3.5 w-3.5" /></button>
+                            <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); }}><Phone className="h-3.5 w-3.5" /></button>
+                          </>
+                        )}
                         <button className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={(e) => { e.stopPropagation(); }}>
                           <CheckSquare className="h-3.5 w-3.5" />
                         </button>
@@ -178,6 +397,7 @@ export function Accounts() {
         <AccountSidePanel
           account={selectedAccount}
           onClose={() => setSelectedAccount(null)}
+          people={sidePanelPeople}
         />
       )}
     </div>

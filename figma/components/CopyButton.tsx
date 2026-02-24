@@ -10,6 +10,7 @@ interface CopyButtonProps {
   toastMessage?: string;
   variant?: 'default' | 'primary' | 'ghost' | 'icon';
   className?: string;
+  onAfterCopy?: () => void;
 }
 
 export function CopyButton({
@@ -18,6 +19,7 @@ export function CopyButton({
   toastMessage = 'Copied to clipboard',
   variant = 'default',
   className = '',
+  onAfterCopy,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
 
@@ -28,6 +30,7 @@ export function CopyButton({
       setCopied(true);
       toast.success(toastMessage);
       setTimeout(() => setCopied(false), 2000);
+      onAfterCopy?.();
     } catch {
       toast.error('Failed to copy');
     }

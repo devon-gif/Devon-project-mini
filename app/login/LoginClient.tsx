@@ -11,12 +11,14 @@ export default function LoginClient() {
 
   const redirectTo = searchParams.get("redirectTo") || "/app";
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value);
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,29 +30,16 @@ export default function LoginClient() {
 
     setLoading(true);
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: eTrim,
-          password,
-        });
-        if (error) throw error;
+      const { error } = await supabase.auth.signInWithPassword({
+        email: eTrim,
+        password,
+      });
+      if (error) throw error;
 
-        router.replace(redirectTo);
-        router.refresh();
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email: eTrim,
-          password,
-        });
-        if (error) throw error;
-
-        // If email confirmations are ON, user may need to confirm.
-        // Still send them to the app — middleware will gate if not authed.
-        router.replace(redirectTo);
-        router.refresh();
-      }
-    } catch (err: any) {
-      setError(err?.message || "Login failed.");
+      router.replace(redirectTo);
+      router.refresh();
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || "Login failed.");
     } finally {
       setLoading(false);
     }
@@ -64,7 +53,7 @@ export default function LoginClient() {
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
         <input
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={handleEmailChange}
           placeholder="Email"
           autoComplete="email"
           style={{
@@ -77,10 +66,10 @@ export default function LoginClient() {
         />
         <input
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={handlePasswordChange}
           placeholder="Password"
           type="password"
-          autoComplete={mode === "signin" ? "current-password" : "new-password"}
+          autoComplete="current-password"
           style={{
             padding: "16px 18px",
             borderRadius: 14,
@@ -104,36 +93,14 @@ export default function LoginClient() {
             fontWeight: 700,
           }}
         >
-          {loading ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
+          {loading ? "Working..." : "Sign in"}
         </button>
 
         {error && <div style={{ color: "#ff4d4d", marginTop: 6 }}>{error}</div>}
 
-        <div style={{ marginTop: 12, fontSize: 14 }}>
-          {mode === "signin" ? (
-            <>
-              No account?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("signup")}
-                style={{ background: "none", border: "none", textDecoration: "underline", cursor: "pointer" }}
-              >
-                Create one
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("signin")}
-                style={{ background: "none", border: "none", textDecoration: "underline", cursor: "pointer" }}
-              >
-                Sign in
-              </button>
-            </>
-          )}
-        </div>
+        <p style={{ marginTop: 12, fontSize: 14, opacity: 0.8 }}>
+          This workspace is invite-only. Ask your admin for an invite link.
+        </p>
       </form>
     </div>
   );

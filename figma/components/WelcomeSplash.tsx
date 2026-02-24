@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { Flame, Inbox, CheckSquare } from 'lucide-react';
-const twillLogo = "/figma/$2";
+const twillLogo = "/figma/cfb522460dc27b08bb7705cf0b5b5ed312f6b215.png";
 import { accounts, emailThreads, tasks } from '../data/mockData';
 
 interface WelcomeSplashProps {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import { people, emailThreads, tasks } from '../data/mockData';
@@ -13,7 +13,7 @@ import { useState } from 'react';
 
 export function PersonDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [showAI, setShowAI] = useState(true);
 
   const person = people.find(p => p.id === id);
@@ -32,7 +32,7 @@ export function PersonDetail() {
     <div className="h-full overflow-hidden flex">
       {/* Main content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        <button onClick={() => navigate('/people')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+        <button onClick={() => router.push('/people')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           Back to People
         </button>
@@ -60,7 +60,7 @@ export function PersonDetail() {
                 Call
               </button>
               <button
-                onClick={() => navigate('/videos/create')}
+                onClick={() => router.push('/videos/create')}
                 className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 <Video className="h-3.5 w-3.5" />
@@ -98,7 +98,7 @@ export function PersonDetail() {
             )}
             <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2.5">
               <Building2 className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-700 flex-1 cursor-pointer hover:text-[#2563EB]" onClick={() => navigate(`/accounts/${person.accountId}`)}>{person.company}</span>
+              <span className="text-sm text-gray-700 flex-1 cursor-pointer hover:text-[#2563EB]" onClick={() => router.push(`/accounts/${person.accountId}`)}>{person.company}</span>
               <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
             </div>
           </div>
@@ -138,7 +138,7 @@ export function PersonDetail() {
           ) : (
             <div className="space-y-2.5">
               {personEmails.map((thread) => (
-                <div key={thread.id} onClick={() => navigate('/inbox')} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-3 cursor-pointer hover:bg-gray-100/60 transition-colors">
+                <div key={thread.id} onClick={() => router.push('/inbox')} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-3 cursor-pointer hover:bg-gray-100/60 transition-colors">
                   <MessageSquare className="h-4 w-4 text-gray-300 mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-700 truncate">{thread.subject}</p>

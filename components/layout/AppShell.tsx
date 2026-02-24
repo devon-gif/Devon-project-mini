@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Sidebar } from "./Sidebar";
-import { Topbar } from "./Topbar";
+import { Sidebar } from "@/figma/components/layout/Sidebar";
+import { Topbar } from "@/figma/components/layout/Topbar";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (

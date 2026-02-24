@@ -8,6 +8,9 @@ import {
 import { useState } from "react";
 import { useAuth } from "../AuthContext";
 
+const twillLogo = "/figma/cfb522460dc27b08bb7705cf0b5b5ed312f6b215.png";
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 const navItems = [
   { icon: Rocket, label: "Mission Control", path: "/app" },
   { icon: Building2, label: "Accounts", path: "/accounts" },
@@ -22,9 +25,17 @@ export function Sidebar() {
   const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logout();
+    if (!DEMO_MODE) {
+      try {
+        await fetch("/auth/signout", { method: "POST" });
+      } catch {
+        // ignore
+      }
+    }
     router.push("/login");
+    router.refresh();
   };
 
   return (
@@ -35,12 +46,16 @@ export function Sidebar() {
         ${collapsed ? "w-[68px]" : "w-[220px]"}
       `}
     >
+      {/* Logo */}
       <div className="flex items-center px-4 py-5 border-b border-gray-200">
-        <div className={`text-gray-900 ${collapsed ? "text-sm" : "text-base"}`} style={{ fontWeight: 700 }}>
-          Twill
-        </div>
+        <img
+          src={twillLogo}
+          alt="Twill"
+          className={`h-8 w-auto object-contain transition-all duration-300 ${collapsed ? "h-6" : ""}`}
+        />
       </div>
 
+      {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5">
         {navItems.map((item) => {
           const isActive =
@@ -65,6 +80,7 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="absolute -right-3 top-1/2 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 hover:text-gray-700 transition-colors shadow-sm"
@@ -72,6 +88,7 @@ export function Sidebar() {
         {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>
 
+      {/* Bottom section */}
       <div className="border-t border-gray-200 px-3 py-3 space-y-2">
         <div className="flex items-center gap-2.5">
           <div
@@ -87,7 +104,6 @@ export function Sidebar() {
             </div>
           )}
         </div>
-
         <button
           onClick={() => router.push("/settings")}
           className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-all ${
@@ -99,12 +115,9 @@ export function Sidebar() {
           <Settings className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Settings</span>}
         </button>
-
         <button
           onClick={handleLogout}
-          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-gray-400 hover:bg-red-50 hover:text-red-600 transition-all ${
-            collapsed ? "justify-center" : ""
-          }`}
+          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-gray-400 hover:bg-red-50 hover:text-red-600 transition-all ${collapsed ? "justify-center" : ""}`}
         >
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Sign out</span>}

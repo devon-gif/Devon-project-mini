@@ -22,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window === 'undefined') return false;
     return sessionStorage.getItem('twill_auth') === 'true';
   });
   const [justLoggedIn, setJustLoggedIn] = useState(false);
@@ -45,6 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
     setJustLoggedIn(false);
     sessionStorage.removeItem('twill_auth');
+    if (typeof document !== 'undefined' && process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+      document.cookie = 'demo-auth=; path=/; max-age=0';
+    }
   };
 
   const clearJustLoggedIn = () => {

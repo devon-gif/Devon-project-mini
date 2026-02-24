@@ -16,6 +16,7 @@ const THEME_KEY = 'twill_theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return false;
     try {
       return localStorage.getItem(THEME_KEY) === 'dark';
     } catch (_e) {

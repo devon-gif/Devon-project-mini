@@ -1,0 +1,97 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+
+const CRM_PATHS = [
+  "/",
+  "/app",
+  "/accounts",
+  "/tasks",
+  "/videos",
+  "/inbox",
+  "/settings",
+  "/figma-test",
+];
+
+const AUTH_TIMEOUT_MS = 5000;
+
+function isCrmPath(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return CRM_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+function isPublicPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/v/") ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/share/")
+  );
+}
+
+function timeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), ms)
+    ),
+  ]);
+}
+
+export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  if (isPublicPath(pathname)) return NextResponse.next();
+  if (!isCrmPath(pathname)) return NextResponse.next();
+
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
+  let data: { user: unknown } | null = null;
+  try {
+    const result = await timeout(supabase.auth.getUser(), AUTH_TIMEOUT_MS);
+    data = result.data;
+  } catch {
+    data = { user: null };
+  }
+
+  if (!data?.user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("redirectTo", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    "/",
+    "/app/:path*",
+    "/accounts/:path*",
+    "/tasks/:path*",
+    "/videos/:path*",
+    "/inbox/:path*",
+    "/settings/:path*",
+    "/figma-test/:path*",
+  ],
+};

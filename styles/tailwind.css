@@ -1,5 +1,7 @@
-@import "tw-animate-css";
+@import "tailwindcss" source(none);
+@source "../app/**/*.{js,ts,jsx,tsx}";
+@source "../components/**/*.{js,ts,jsx,tsx}";
+@source "../figma/**/*.{js,ts,jsx,tsx}";
+@source "../styles/**/*.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tw-animate-css";

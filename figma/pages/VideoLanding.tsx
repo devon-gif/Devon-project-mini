@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useRouter, useParams } from 'next/navigation';
 import { videoOutreaches } from '../data/videoData';
 import {
   Play, CalendarCheck, ArrowRight, ArrowLeft,
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 export function VideoLanding() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { id } = useParams();
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
 
@@ -26,7 +26,7 @@ export function VideoLanding() {
       <div className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white px-5 py-2.5 shadow-sm">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(id ? `/videos/${id}` : '/videos')}
+            onClick={() => router.push(id ? `/videos/${id}` : '/videos')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
