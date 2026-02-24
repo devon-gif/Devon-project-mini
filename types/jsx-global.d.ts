@@ -16,6 +16,15 @@ declare namespace React {
     props: unknown;
     key?: string | null;
   }
+  interface ChangeEvent<T = unknown> {
+    target: T;
+    currentTarget: T;
+  }
+  interface FormEvent<T = unknown> {
+    target: T;
+    currentTarget: T;
+    preventDefault(): void;
+  }
 }
 
 declare namespace JSX {

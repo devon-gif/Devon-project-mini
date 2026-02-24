@@ -13,6 +13,8 @@ declare module "react" {
     | ReactNode[];
   export const createElement: (type: unknown, props?: unknown, ...children: unknown[]) => unknown;
   export const Fragment: unknown;
+  export function useState<T>(initial: T | (() => T)): [T, (value: T | ((prev: T) => T)) => void];
+  export function useMemo<T>(factory: () => T, deps: unknown[]): T;
   export default unknown;
 }
 
