@@ -11,7 +11,7 @@ export default function LoginClient() {
 
   const redirectTo = searchParams.get("redirectTo") || "/app";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("heydevon@gmail.com");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
