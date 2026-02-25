@@ -27,16 +27,31 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
     // SQLite not available or error — fall through
   }
 
-  // 2) Supabase Storage: resolve by public_token, serve signed or public URL
+  // 2) Supabase Storage: resolve by public_token (or share_token fallback), serve signed or public URL
   try {
     const admin = createAdminClient();
-    const { data: video, error } = await admin
+    let video: { video_path?: string; storage_video_path?: string; recipient_name?: string; recipient_company?: string; cta_url?: string; cta_label?: string; status?: string } | null = null;
+    const { data: byPublic, error: e1 } = await admin
       .from("videos")
-      .select("id, title, video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status")
+      .select("id, title, video_path, storage_video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status")
       .eq("public_token", token)
-      .single();
-    if (!error && video?.video_path && video.status !== "draft" && video.status !== "processing") {
-      const videoUrl = await getVideoPlaybackUrl(admin, video.video_path);
+      .maybeSingle();
+    if (!e1 && byPublic) video = byPublic;
+    if (!video) {
+      try {
+        const { data: byShare, error: e2 } = await admin
+          .from("videos")
+          .select("id, title, video_path, storage_video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status")
+          .eq("share_token", token)
+          .maybeSingle();
+        if (!e2 && byShare) video = byShare;
+      } catch {
+        // share_token column may not exist
+      }
+    }
+    const storagePath = (video?.video_path || video?.storage_video_path || "").trim();
+    if (video && storagePath && video.status !== "processing") {
+      const videoUrl = await getVideoPlaybackUrl(admin, storagePath);
       if (videoUrl) {
         return (
           <ShareVideoClient

@@ -723,6 +723,10 @@ function ReadyState({
   const landingUrl = typeof window !== 'undefined' ? `${window.location.origin}/share/${createdVideo.public_token}` : '';
   const subjectLine = `Quick idea for ${person.company}, ${person.name.split(' ')[0]}`;
   const hasGif = !!createdVideo.gif_path;
+  const supabaseUrl = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : '';
+  const gifUrl = hasGif && supabaseUrl && createdVideo.gif_path
+    ? `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/gifs/${createdVideo.gif_path}`
+    : null;
 
   return (
     <div className="space-y-5">
@@ -743,66 +747,33 @@ function ReadyState({
 
         {/* Preview area */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {/* Thumbnail */}
+          {/* Thumbnail / GIF Preview */}
           <div className="rounded-xl border border-gray-200 overflow-hidden">
             <div className="text-[10px] text-gray-400 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
-              Thumbnail
+              {hasGif ? 'GIF Preview' : 'Thumbnail'}
             </div>
-            <div className="relative aspect-video bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
-              <div className="w-[75%] h-[75%] rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-                <div className="h-4 bg-gray-800 flex items-center px-1.5 gap-0.5">
-                  <div className="w-1 h-1 rounded-full bg-red-400" />
-                  <div className="w-1 h-1 rounded-full bg-yellow-400" />
-                  <div className="w-1 h-1 rounded-full bg-green-400" />
+            <div className="relative aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
+              {gifUrl ? (
+                <img src={gifUrl} alt="Video GIF preview" className="w-full h-full object-contain" />
+              ) : (
+                <div className="w-[75%] h-[75%] rounded-lg border border-gray-200 bg-white shadow-sm flex items-center justify-center text-gray-400 text-xs">
+                  No preview (GIF generation skipped)
                 </div>
-                <div className="p-2 space-y-1">
-                  <div className="h-1 w-10 bg-gray-200 rounded" />
-                  <div className="h-0.5 w-14 bg-gray-100 rounded" />
-                </div>
-              </div>
-              <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white shadow flex items-center justify-center">
-                <span className="text-[7px] text-white" style={{ fontWeight: 600 }}>
-                  AK
-                </span>
-              </div>
+              )}
             </div>
           </div>
 
-          {/* GIF / Poster Preview */}
+          {/* Landing page preview */}
           <div className="rounded-xl border border-gray-200 overflow-hidden">
             <div className="text-[10px] text-gray-400 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
-              {hasGif ? 'GIF Preview (clickable)' : 'Video thumbnail (poster on landing page)'}
+              Video thumbnail (poster on landing page)
             </div>
-            <div className="relative aspect-video bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center cursor-pointer group">
-              <div className="w-[75%] h-[75%] rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-                <div className="h-4 bg-gray-800 flex items-center px-1.5 gap-0.5">
-                  <div className="w-1 h-1 rounded-full bg-red-400" />
-                  <div className="w-1 h-1 rounded-full bg-yellow-400" />
-                  <div className="w-1 h-1 rounded-full bg-green-400" />
-                </div>
-                <div className="p-2 space-y-1">
-                  <div className="h-1 w-10 bg-gray-200 rounded" />
-                  <div className="h-0.5 w-14 bg-gray-100 rounded" />
-                  <div className="mt-0.5 px-0.5 py-0.5 rounded bg-[#FFD600]/20 border border-[#FFD600]/40">
-                    <div className="h-0.5 w-6 bg-[#FFD600]/60 rounded" />
-                  </div>
-                </div>
-              </div>
-              <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white shadow flex items-center justify-center">
-                <span className="text-[7px] text-white" style={{ fontWeight: 600 }}>
-                  AK
-                </span>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow">
-                  <Play className="h-3 w-3 text-gray-700 ml-0.5" fill="currentColor" />
-                </div>
-              </div>
-              {hasGif && (
-                <div className="absolute top-2 left-2 rounded-md bg-[#FFD600] px-1.5 py-0.5">
-                  <span className="text-[9px] text-gray-900" style={{ fontWeight: 600 }}>
-                    GIF
-                  </span>
+            <div className="relative aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
+              {gifUrl ? (
+                <img src={gifUrl} alt="Landing page poster" className="w-full h-full object-contain" />
+              ) : (
+                <div className="w-[75%] h-[75%] rounded-lg border border-gray-200 bg-white shadow-sm flex items-center justify-center text-gray-400 text-xs text-center px-2">
+                  Video plays on share page
                 </div>
               )}
             </div>
