@@ -528,7 +528,7 @@ export function CreateVideo() {
 
             {processingPhase === 'done' && createdVideo && (
               <ReadyState
-                person={person}
+                person={person as any}
                 videoTitle={videoTitle}
                 ctaLabel={ctaLabel}
                 createdVideo={createdVideo}
