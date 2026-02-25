@@ -95,6 +95,7 @@ export async function POST(request: Request) {
         cta_url,
         cta_label: (body.cta_label as string) ?? "Book 15 min",
         public_token,
+        share_token: public_token,
         stats_views: 0,
         stats_clicks: 0,
       };
@@ -155,6 +156,7 @@ export async function POST(request: Request) {
       cta_type: "book",
       cta_url: "",
       public_token,
+      share_token: public_token,
       stats_views: 0,
       stats_clicks: 0,
     })

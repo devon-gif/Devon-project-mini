@@ -6,6 +6,8 @@
 
 **"Could not find the 'public_token' column of 'videos'"** → Run **`supabase/migrations/000_add_app_columns.sql`** in Supabase SQL Editor (adds `public_token`, `video_path`, `gif_path`, stats columns).
 
+**Share links show "Video not found"** → Run **`supabase/migrations/20260226000000_backfill_share_token.sql`** to backfill `share_token` for existing videos.
+
 1. Open [Supabase Dashboard](https://supabase.com/dashboard) → your project → **SQL Editor**.
 2. Copy the migration file contents, paste, and click **Run**.
 3. Retry Create Video in the app.

@@ -5,6 +5,8 @@ import { getVideoPlaybackUrl } from "@/lib/supabase-storage";
 import { getVideoBySlug } from "@/lib/db";
 import ShareVideoClient from "../ShareVideoClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
@@ -31,9 +33,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   try {
     const admin = createAdminClient();
     let video: { video_path?: string; storage_video_path?: string; recipient_name?: string; recipient_company?: string; cta_url?: string; cta_label?: string; status?: string } | null = null;
+    const cols = "id, title, video_path, storage_video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status";
     const { data: byPublic, error: e1 } = await admin
       .from("videos")
-      .select("id, title, video_path, storage_video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status")
+      .select(cols)
       .eq("public_token", token)
       .maybeSingle();
     if (!e1 && byPublic) video = byPublic;
@@ -41,7 +44,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
       try {
         const { data: byShare, error: e2 } = await admin
           .from("videos")
-          .select("id, title, video_path, storage_video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status")
+          .select(cols)
           .eq("share_token", token)
           .maybeSingle();
         if (!e2 && byShare) video = byShare;
@@ -50,7 +53,8 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
       }
     }
     const storagePath = (video?.video_path || video?.storage_video_path || "").trim();
-    if (video && storagePath && video.status !== "processing") {
+    const status = video?.status ?? "";
+    if (video && storagePath && status !== "processing") {
       const videoUrl = await getVideoPlaybackUrl(admin, storagePath);
       if (videoUrl) {
         return (

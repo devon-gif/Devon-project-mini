@@ -341,7 +341,7 @@ export async function POST(
     try {
       await admin.from("videos").update({ status: "ready" }).eq("id", videoId);
     } catch (_) {}
-    return failResponse(err.message || "GIF generation failed", 500);
+    return successResponse(null, true, "GIF generation failed. Landing page is ready.");
   } finally {
     await cleanup();
   }
