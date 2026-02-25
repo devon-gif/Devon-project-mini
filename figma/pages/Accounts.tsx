@@ -8,7 +8,7 @@ import { accounts as mockAccounts } from '../data/mockData';
 import type { Account } from '../data/mockData';
 import {
   Search, Filter, Plus, ChevronDown,
-  Mail, Linkedin, CheckSquare, Globe,
+  Mail, Linkedin, Phone, CheckSquare, Globe,
 } from 'lucide-react';
 
 type ApiAccount = {
