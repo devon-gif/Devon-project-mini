@@ -70,7 +70,7 @@ const todayTasks = tasks.filter(
 ).length;
 
 const stats = [
-  { icon: Flame, label: 'Hot Accounts', value: hotAccounts, color: '#EF4444', route: '/accounts' },
+  { icon: Flame, label: 'Hot Leads', value: hotAccounts, color: '#EF4444', route: '/accounts' },
   { icon: Inbox, label: 'Unread Replies', value: unreadInbox, color: '#2563EB', route: '/inbox' },
   { icon: CheckSquare, label: 'Tasks Due Today', value: todayTasks, color: '#F59E0B', route: '/tasks' },
 ];

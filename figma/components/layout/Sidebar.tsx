@@ -13,7 +13,7 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const navItems = [
   { icon: Rocket, label: "Mission Control", path: "/app" },
-  { icon: Building2, label: "Accounts", path: "/accounts" },
+  { icon: Building2, label: "Leads", path: "/accounts" },
   { icon: Video, label: "Videos", path: "/videos" },
   { icon: Inbox, label: "Inbox", path: "/inbox" },
   { icon: CheckSquare, label: "Tasks", path: "/tasks" },

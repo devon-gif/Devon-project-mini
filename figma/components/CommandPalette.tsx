@@ -26,7 +26,7 @@ const commands = [
   { id: 'ai-summarize', icon: FileText, label: 'AI: Summarize thread', category: 'AI Assistant', path: '/inbox' },
   { id: 'ai-tasks', icon: Tag, label: 'AI: Extract tasks', category: 'AI Assistant', path: '/app' },
   { id: 'mission', icon: Rocket, label: 'Go to Mission Control', category: 'Navigate', path: '/app' },
-  { id: 'accounts', icon: Building2, label: 'Go to Accounts', category: 'Navigate', path: '/accounts' },
+  { id: 'accounts', icon: Building2, label: 'Go to Leads', category: 'Navigate', path: '/accounts' },
   { id: 'videos', icon: Video, label: 'Go to Videos', category: 'Navigate', path: '/videos' },
   { id: 'inbox', icon: Inbox, label: 'Go to Inbox', category: 'Navigate', path: '/inbox' },
   { id: 'tasks', icon: CheckSquare, label: 'Go to Tasks', category: 'Navigate', path: '/tasks' },

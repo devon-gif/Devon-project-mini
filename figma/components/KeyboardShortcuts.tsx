@@ -14,7 +14,7 @@ const shortcuts = [
   { key: 'V', label: 'New Video', description: 'Create personalized video', icon: Video, route: '/videos/create' },
   { key: 'E', label: 'Inbox', description: 'Open email inbox', icon: Mail, route: '/inbox' },
   { key: 'T', label: 'Tasks', description: 'View task board', icon: CheckSquare, route: '/tasks' },
-  { key: 'A', label: 'Accounts', description: 'Browse accounts', icon: Building2, route: '/accounts' },
+  { key: 'A', label: 'Leads', description: 'Browse leads', icon: Building2, route: '/accounts' },
   { key: 'M', label: 'Mission Control', description: 'Go to dashboard', icon: Compass, route: '/app' },
   { key: 'G', label: 'Videos', description: 'Video outreach dashboard', icon: Video, route: '/videos' },
   { key: 'D', label: 'Dark Mode', description: 'Toggle light/dark theme', icon: Moon },

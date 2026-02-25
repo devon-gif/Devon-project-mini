@@ -1,6 +1,6 @@
 "use client";
 
-import { X, Mail, Phone, Linkedin, Clock, CheckSquare, Video, Globe } from 'lucide-react';
+import { X, Mail, Phone, Linkedin, Clock, CheckSquare, Video, Globe, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 import { StatusChip, TierBadge } from './StatusChip';
@@ -11,8 +11,14 @@ import type { SidePanelPerson } from '../pages/Accounts';
 interface AccountSidePanelProps {
   account: Account | null;
   onClose: () => void;
-  /** When provided (from GET /api/accounts/[id]), show these contacts with live links */
+  /** When provided (from GET /api/accounts/[id] or /api/leads), show these contacts with live links */
   people?: SidePanelPerson[];
+  /** Lead research links (from CSV); shown as buttons and used for research fallback when no people */
+  linkedinCompanySearch?: string;
+  crunchbaseSearch?: string;
+  primaryBuyerTitles?: string;
+  secondaryTitles?: string;
+  triggerToMention?: string;
 }
 
 const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'purple' | 'default'> = {
@@ -23,7 +29,16 @@ const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'purple' | 
   'Closed Lost': 'default',
 };
 
-export function AccountSidePanel({ account, onClose, people: apiPeople }: AccountSidePanelProps) {
+export function AccountSidePanel({
+  account,
+  onClose,
+  people: apiPeople,
+  linkedinCompanySearch,
+  crunchbaseSearch,
+  primaryBuyerTitles,
+  secondaryTitles,
+  triggerToMention,
+}: AccountSidePanelProps) {
   const router = useRouter();
   const nextActionsRef = useRef<HTMLDivElement>(null);
 
@@ -34,6 +49,8 @@ export function AccountSidePanel({ account, onClose, people: apiPeople }: Accoun
   const accountTasks = tasks.filter(t => t.linkedAccount === account.company);
   const websiteUrl = account.domain ? (account.domain.startsWith('http') ? account.domain : `https://${account.domain}`) : null;
   const isApiPeople = Boolean(apiPeople?.length);
+  const hasResearchLinks = !!(linkedinCompanySearch || crunchbaseSearch);
+  const showResearchFallback = accountPeople.length === 0 && !account.contactName && !account.contactEmail && hasResearchLinks;
 
   return (
     <div className="flex h-full w-[420px] shrink-0 flex-col border-l border-gray-200 bg-white">
@@ -98,9 +115,14 @@ export function AccountSidePanel({ account, onClose, people: apiPeople }: Accoun
                 <Globe className="h-3 w-3" /> Website
               </a>
             )}
-            {account.linkedinUrl && (
-              <a href={account.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
-                <Linkedin className="h-3 w-3" /> LinkedIn
+            {(linkedinCompanySearch || account.linkedinUrl) && (
+              <a href={linkedinCompanySearch || account.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+                <Linkedin className="h-3 w-3" /> {linkedinCompanySearch ? 'LinkedIn Search' : 'LinkedIn'}
+              </a>
+            )}
+            {crunchbaseSearch && (
+              <a href={crunchbaseSearch} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
+                <ExternalLink className="h-3 w-3" /> Crunchbase Search
               </a>
             )}
             {account.contactEmail && (
@@ -121,11 +143,47 @@ export function AccountSidePanel({ account, onClose, people: apiPeople }: Accoun
           </div>
         </div>
 
-        {/* Contacts */}
+        {/* People / Contacts */}
         <div className="px-5 py-4 border-b border-gray-100">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Contacts ({accountPeople.length + (account.contactName || account.contactEmail ? 1 : 0)})</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">
+            {showResearchFallback ? 'People' : `Contacts (${accountPeople.length + (account.contactName || account.contactEmail ? 1 : 0)})`}
+          </p>
           <div className="space-y-2.5">
-            {(account.contactName || account.contactEmail) && accountPeople.length === 0 && (
+            {showResearchFallback && (
+              <>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {linkedinCompanySearch && (
+                    <a href={linkedinCompanySearch} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-[#0A66C2] px-3 py-2 text-xs text-white hover:bg-[#004182]">
+                      <Linkedin className="h-3.5 w-3.5" /> Open LinkedIn Search
+                    </a>
+                  )}
+                  {crunchbaseSearch && (
+                    <a href={crunchbaseSearch} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 hover:bg-gray-50">
+                      <ExternalLink className="h-3.5 w-3.5" /> Open Crunchbase Search
+                    </a>
+                  )}
+                </div>
+                {primaryBuyerTitles && (
+                  <div className="rounded-lg bg-gray-50 px-3 py-2">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Primary buyer titles</p>
+                    <p className="text-xs text-gray-700">{primaryBuyerTitles}</p>
+                  </div>
+                )}
+                {secondaryTitles && (
+                  <div className="rounded-lg bg-gray-50 px-3 py-2">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Secondary titles</p>
+                    <p className="text-xs text-gray-700">{secondaryTitles}</p>
+                  </div>
+                )}
+                {triggerToMention && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
+                    <p className="text-[10px] text-amber-700 uppercase tracking-wider mb-1">Trigger to mention</p>
+                    <p className="text-xs text-gray-700">{triggerToMention}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {(account.contactName || account.contactEmail) && accountPeople.length === 0 && !showResearchFallback && (
               <div className="flex items-center justify-between group">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[10px] text-blue-600 font-medium">
@@ -194,7 +252,7 @@ export function AccountSidePanel({ account, onClose, people: apiPeople }: Accoun
                 </div>
               );
             })}
-            {accountPeople.length === 0 && !account.contactName && !account.contactEmail && (
+            {accountPeople.length === 0 && !account.contactName && !account.contactEmail && !showResearchFallback && (
               <p className="text-xs text-gray-400 text-center py-2">No contacts yet</p>
             )}
           </div>
