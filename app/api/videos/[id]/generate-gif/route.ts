@@ -77,8 +77,8 @@ async function generateGifAndThumbnail(
         reject(err);
         return;
       }
-      const format = metadata?.format;
-      const videoStream = metadata?.streams?.find((s) => s.codec_type === "video");
+      const format = (metadata as any)?.format;
+      const videoStream = (metadata as any)?.streams?.find((s: any) => s.codec_type === "video");
       const codec = videoStream?.codec_name ?? "unknown";
       const duration = format?.duration ?? 0;
       console.error(`[generate-gif] ${opts.logLabel} ffprobe videoId=${videoId} codec=${codec} duration=${duration}s`);
