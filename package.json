@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p $PORT",
+    "start": "node scripts/start.js",
     "lint": "eslint",
     "seed:prospects": "npx tsx scripts/csv-to-json.ts",
     "seed:demo": "npx tsx scripts/seed-demo.ts"
