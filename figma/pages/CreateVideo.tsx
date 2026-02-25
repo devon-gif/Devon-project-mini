@@ -550,7 +550,10 @@ export function CreateVideo() {
             )}
 
             {processingPhase === 'error' && (
-              <ErrorState onRetry={() => { setProcessingPhase('uploading'); setGenerateError(null); }} />
+              <ErrorState
+                message={generateError ?? undefined}
+                onRetry={() => { setProcessingPhase('uploading'); setGenerateError(null); }}
+              />
             )}
           </div>
         )}
@@ -853,7 +856,7 @@ function ReadyState({
 }
 
 /* ─── Error State ─── */
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ message, onRetry }: { message?: string; onRetry: () => void }) {
   return (
     <GlassCard className="p-6">
       <div className="flex items-center gap-3 mb-4">
@@ -862,13 +865,14 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         </div>
         <div>
           <h3 className="text-gray-800">Something went wrong</h3>
-          <p className="text-xs text-gray-400">GIF generation failed. Please try again.</p>
+          <p className="text-xs text-red-400">{message || 'GIF generation failed. Please try again.'}</p>
         </div>
       </div>
       <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 mb-4">
         <p className="text-sm text-red-700">
-          We couldn't generate the GIF preview from your video. This can happen with unsupported codecs or
-          corrupted files.
+          {message
+            ? message
+            : "We couldn't generate the GIF preview from your video. This can happen with unsupported codecs or corrupted files."}
         </p>
         <p className="text-xs text-red-500 mt-2">
           Try re-uploading or contact{' '}
