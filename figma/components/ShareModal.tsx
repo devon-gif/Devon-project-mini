@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   X, Share2, Copy, Check, Eye, EyeOff, ExternalLink,
 } from 'lucide-react';
+import { CompanyLogo } from './CompanyLogo';
 import type { Account } from '../data/mockData';
 
 interface ShareModalProps {
@@ -102,9 +103,7 @@ export function ShareModal({ open, onClose, metrics, hotAccounts }: ShareModalPr
                 {hotAccounts.slice(0, 5).map(a => (
                   <div key={a.id} className="flex items-center justify-between py-1">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-5 w-5 items-center justify-center rounded bg-blue-50 text-[8px] text-blue-600" style={{ fontWeight: 500 }}>
-                        {a.company.slice(0, 2)}
-                      </div>
+                      <CompanyLogo domain={a.domain} company={a.company} size={20} />
                       <span className="text-[11px] text-gray-700">{a.company}</span>
                     </div>
                     <div className="flex items-center gap-1.5">

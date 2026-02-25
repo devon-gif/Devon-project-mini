@@ -8,6 +8,7 @@ import {
   ArrowUpRight, TrendingUp, UserPlus, Zap, Mail, Phone,
   Clock, ChevronRight, Flame,
 } from 'lucide-react';
+import { CompanyLogo } from '../components/CompanyLogo';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useRouter } from 'next/navigation';
 
@@ -146,9 +147,7 @@ export function Dashboard() {
                 className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 p-3 cursor-pointer hover:bg-gray-100/60 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-xs text-blue-600" style={{ fontWeight: 500 }}>
-                    {account.company.slice(0, 2)}
-                  </div>
+                  <CompanyLogo domain={account.domain} company={account.company} size={36} />
                   <div>
                     <p className="text-sm text-gray-800">{account.company}</p>
                     <p className="text-[11px] text-gray-400">{account.nextStep}</p>

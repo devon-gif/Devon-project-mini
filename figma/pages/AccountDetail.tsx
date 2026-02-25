@@ -9,6 +9,7 @@ import {
   StickyNote, Activity, TrendingUp, Calendar, Phone,
   CheckSquare, ChevronRight, Plus, Sparkles,
 } from 'lucide-react';
+import { CompanyLogo } from '../components/CompanyLogo';
 import { useState } from 'react';
 
 export function AccountDetail() {
@@ -49,9 +50,7 @@ export function AccountDetail() {
       <GlassCard className="p-5">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-lg text-blue-600" style={{ fontWeight: 600 }}>
-              {account.company.slice(0, 2)}
-            </div>
+            <CompanyLogo domain={account.domain} company={account.company} size={56} />
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-gray-900">{account.company}</h1>

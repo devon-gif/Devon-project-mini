@@ -10,6 +10,7 @@ import {
   Mail, Linkedin, Phone, CheckSquare, Globe, ExternalLink,
 } from 'lucide-react';
 import { PersonAvatar } from '../components/PersonAvatar';
+import { CompanyLogo } from '../components/CompanyLogo';
 
 export type SidePanelPerson = {
   id: string;
@@ -118,6 +119,13 @@ export function Accounts() {
 
   const sidePanelPeople = selectedLead?.id ? (contactsByLeadId[selectedLead.id] ?? []) : [];
 
+  const handleAvatarChange = (personId: string, avatarUrl: string) => {
+    if (!selectedLead?.id) return;
+    const people = contactsByLeadId[selectedLead.id] ?? [];
+    const updated = people.map((p) => (p.id === personId ? { ...p, avatar_url: avatarUrl } : p));
+    setContactsByLeadId((prev) => ({ ...prev, [selectedLead.id]: updated }));
+  };
+
   const filtered = leads.filter((a) => {
     if (search) {
       const q = search.toLowerCase();
@@ -210,12 +218,9 @@ export function Accounts() {
                             avatar_url={contactsByLeadId[lead.id][0].avatar_url}
                             company={lead.company}
                             size={32}
-                            showFindPhoto={false}
                           />
                         ) : (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-xs text-blue-600" style={{ fontWeight: 500 }}>
-                            {lead.company.slice(0, 2)}
-                          </div>
+                          <CompanyLogo domain={lead.domain} company={lead.company} size={32} />
                         )}
                         <div>
                           <p className="text-sm text-gray-800">{lead.company}</p>
@@ -306,6 +311,7 @@ export function Accounts() {
           primaryBuyerTitles={selectedLead.primaryBuyerTitles}
           secondaryTitles={selectedLead.secondaryTitles}
           triggerToMention={selectedLead.triggerToMention}
+          onAvatarChange={handleAvatarChange}
         />
       )}
     </div>

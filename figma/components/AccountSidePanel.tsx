@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 import { StatusChip, TierBadge } from './StatusChip';
 import { PersonAvatar } from './PersonAvatar';
+import { CompanyLogo } from './CompanyLogo';
 import { people, emailThreads, tasks } from '../data/mockData';
 import type { Account } from '../data/mockData';
 import type { SidePanelPerson } from '../pages/Accounts';
@@ -14,6 +15,8 @@ interface AccountSidePanelProps {
   onClose: () => void;
   /** When provided (from GET /api/accounts/[id] or /api/leads), show these contacts with live links */
   people?: SidePanelPerson[];
+  /** Called when a person's avatar is updated (for DB-backed people) */
+  onAvatarChange?: (personId: string, avatarUrl: string) => void;
   /** Lead research links (from CSV); shown as buttons and used for research fallback when no people */
   linkedinCompanySearch?: string;
   crunchbaseSearch?: string;
@@ -39,6 +42,7 @@ export function AccountSidePanel({
   primaryBuyerTitles,
   secondaryTitles,
   triggerToMention,
+  onAvatarChange,
 }: AccountSidePanelProps) {
   const router = useRouter();
   const nextActionsRef = useRef<HTMLDivElement>(null);
@@ -58,9 +62,7 @@ export function AccountSidePanel({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-sm text-blue-600" style={{ fontWeight: 500 }}>
-            {account.company.slice(0, 2)}
-          </div>
+          <CompanyLogo domain={account.domain} company={account.company} size={40} />
           <div>
             <h3 className="text-gray-900">{account.company}</h3>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -187,7 +189,7 @@ export function AccountSidePanel({
             {(account.contactName || account.contactEmail) && accountPeople.length === 0 && !showResearchFallback && (
               <div className="flex items-center justify-between group">
                 <div className="flex items-center gap-2.5">
-                  <PersonAvatar name={account.contactName ?? null} company={account.company} size={32} showFindPhoto={true} />
+                  <PersonAvatar name={account.contactName ?? null} company={account.company} size={32} />
                   <div>
                     <p className="text-sm text-gray-800">{account.contactName || 'Contact'}</p>
                     <p className="text-[11px] text-gray-400">{account.contactTitle || account.contactEmail || ''}</p>
@@ -217,7 +219,14 @@ export function AccountSidePanel({
               return (
                 <div key={person.id} className="flex items-center justify-between group">
                   <div className="flex items-center gap-2.5">
-                    <PersonAvatar name={name || null} avatar_url={avatarUrl} company={account.company} size={32} showFindPhoto={true} />
+                    <PersonAvatar
+                      name={name || null}
+                      avatar_url={avatarUrl}
+                      company={account.company}
+                      size={32}
+                      personId={isApiPeople ? person.id : undefined}
+                      onAvatarChange={isApiPeople && onAvatarChange ? (url) => onAvatarChange(person.id, url) : undefined}
+                    />
                     <div>
                       <p className="text-sm text-gray-800">{name || 'Contact'}</p>
                       <p className="text-[11px] text-gray-400">{title || email || ''}</p>

@@ -1,13 +1,14 @@
 # Deploy (Render / production)
 
-## Required: Supabase schema (fix "Could not find the table 'public.videos'")
+## Required: Supabase schema
 
-If the app shows **"Could not find the table 'public.videos' in the schema cache"**, the database is missing the tables.
+**"Could not find the table 'public.videos'"** → Run **`supabase/migrations/000_bootstrap_public_videos.sql`** in Supabase SQL Editor.
+
+**"Could not find the 'public_token' column of 'videos'"** → Run **`supabase/migrations/000_add_app_columns.sql`** in Supabase SQL Editor (adds `public_token`, `video_path`, `gif_path`, stats columns).
 
 1. Open [Supabase Dashboard](https://supabase.com/dashboard) → your project → **SQL Editor**.
-2. Copy the full contents of **`supabase/migrations/000_bootstrap_public_videos.sql`**.
-3. Paste and click **Run**. You should see "Success. No rows returned."
-4. Retry Create Video in the app; upload and GIF generation should work.
+2. Copy the migration file contents, paste, and click **Run**.
+3. Retry Create Video in the app.
 
 Storage buckets (`videos`, `gifs`) are created automatically by the app on first use if missing.
 

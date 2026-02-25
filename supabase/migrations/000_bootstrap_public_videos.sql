@@ -21,12 +21,15 @@ create table if not exists public.videos (
   status text not null default 'draft', -- draft|uploading|uploaded|processing|ready|sent|failed
   sent_at timestamptz null,
 
-  -- Storage paths or URLs
+  -- Storage paths (app uses video_path, gif_path)
+  video_path text not null default '',
+  gif_path text null,
   storage_video_path text null,
   storage_gif_path text null,
   storage_thumb_path text null,
 
-  -- Public share token for landing page
+  -- Public share token for landing page (app uses public_token)
+  public_token text unique null,
   share_token text unique null,
 
   cta_type text null default 'book',
@@ -78,11 +81,11 @@ for update to authenticated
 using (true)
 with check (true);
 
--- Public can read a video ONLY if it has a share_token (for landing page)
+-- Public can read a video ONLY if it has a public_token or share_token (for landing page)
 drop policy if exists "videos public read via token" on public.videos;
 create policy "videos public read via token" on public.videos
 for select to anon
-using (share_token is not null);
+using (public_token is not null or share_token is not null);
 
 -- Events: allow public insert (landing page tracking)
 drop policy if exists "events public insert" on public.video_events;

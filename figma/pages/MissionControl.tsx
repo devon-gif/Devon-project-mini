@@ -18,6 +18,7 @@ import {
   Target, CheckCircle2, RotateCcw, Trash2,
 } from 'lucide-react';
 import { ShareModal } from '../components/ShareModal';
+import { CompanyLogo } from '../components/CompanyLogo';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────
@@ -547,9 +548,7 @@ export function MissionControl() {
                     onClick={() => router.push('/accounts')}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] text-blue-600" style={{ fontWeight: 500 }}>
-                        {account.company.slice(0, 2)}
-                      </div>
+                      <CompanyLogo domain={account.domain} company={account.company} size={32} />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-gray-800">{account.company}</span>
