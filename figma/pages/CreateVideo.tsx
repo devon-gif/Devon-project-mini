@@ -50,7 +50,7 @@ export function CreateVideo() {
   // Step 3
   const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>('uploading');
   const [progress, setProgress] = useState(0);
-  const [createdVideo, setCreatedVideo] = useState<{ id: string; public_token: string } | null>(null);
+  const [createdVideo, setCreatedVideo] = useState<{ id: string; public_token: string; gif_path?: string | null } | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [apiPeople, setApiPeople] = useState<Array<{ id: string; name: string; title: string; company: string; email: string; linkedin?: string; emailStatus?: string }>>([]);
 
@@ -188,10 +188,10 @@ export function CreateVideo() {
         throw new Error(gifData.error || 'GIF generation failed');
       }
       if (gifData.skipped && gifData.message) {
-        toast.info('GIF generation disabled in this environment (e.g. Vercel). Video is still shareable.');
+        toast.info(gifData.message);
       }
       setProgress(100);
-      setCreatedVideo({ id: videoId, public_token });
+      setCreatedVideo({ id: videoId, public_token, gif_path: gifData.gif_path ?? null });
       setProcessingPhase('done');
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Something went wrong');
@@ -712,12 +712,13 @@ function ReadyState({
   person: ReadyStatePerson;
   videoTitle: string;
   ctaLabel: string;
-  createdVideo: { id: string; public_token: string };
+  createdVideo: { id: string; public_token: string; gif_path?: string | null };
   onMarkSent: () => void | Promise<void>;
   onOpenLanding: () => void;
 }) {
   const landingUrl = typeof window !== 'undefined' ? `${window.location.origin}/share/${createdVideo.public_token}` : '';
   const subjectLine = `Quick idea for ${person.company}, ${person.name.split(' ')[0]}`;
+  const hasGif = !!createdVideo.gif_path;
 
   return (
     <div className="space-y-5">
@@ -729,7 +730,9 @@ function ReadyState({
           </div>
           <div className="flex-1">
             <h3 className="text-gray-800">Video Ready!</h3>
-            <p className="text-xs text-gray-400">Landing page + GIF preview generated</p>
+            <p className="text-xs text-gray-400">
+              {hasGif ? 'Landing page + GIF preview generated' : 'Landing page ready (video thumbnail as preview)'}
+            </p>
           </div>
           <VideoStatusChip status="ready" size="md" />
         </div>
@@ -761,10 +764,10 @@ function ReadyState({
             </div>
           </div>
 
-          {/* GIF Preview */}
+          {/* GIF / Poster Preview */}
           <div className="rounded-xl border border-gray-200 overflow-hidden">
             <div className="text-[10px] text-gray-400 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
-              GIF Preview (clickable)
+              {hasGif ? 'GIF Preview (clickable)' : 'Video thumbnail (poster on landing page)'}
             </div>
             <div className="relative aspect-video bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center cursor-pointer group">
               <div className="w-[75%] h-[75%] rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -791,12 +794,13 @@ function ReadyState({
                   <Play className="h-3 w-3 text-gray-700 ml-0.5" fill="currentColor" />
                 </div>
               </div>
-              {/* Animated GIF indicator */}
-              <div className="absolute top-2 left-2 rounded-md bg-[#FFD600] px-1.5 py-0.5">
-                <span className="text-[9px] text-gray-900" style={{ fontWeight: 600 }}>
-                  GIF
-                </span>
-              </div>
+              {hasGif && (
+                <div className="absolute top-2 left-2 rounded-md bg-[#FFD600] px-1.5 py-0.5">
+                  <span className="text-[9px] text-gray-900" style={{ fontWeight: 600 }}>
+                    GIF
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
