@@ -3,7 +3,7 @@ declare module "fluent-ffmpeg" {
     inputOptions(options: string[]): FfmpegCommand;
     outputOptions(options: string | string[]): FfmpegCommand;
     output(path: string): FfmpegCommand;
-    on(event: string, callback: (...args: unknown[]) => void): FfmpegCommand;
+    on(event: string, callback: (...args: any[]) => void): FfmpegCommand;
     run(): void;
     seekInput(offset: number): FfmpegCommand;
   }
