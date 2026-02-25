@@ -29,6 +29,8 @@ create table if not exists public.videos (
   -- Public share token for landing page
   share_token text unique null,
 
+  cta_type text null default 'book',
+
   cta_label text null default 'Book 15 min',
   cta_url text null,
 
