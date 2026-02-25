@@ -1,3 +1,7 @@
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+
 /**
  * Simple CSV parser with quoted field support. Used by seed-prospects API.
  */
@@ -96,4 +100,34 @@ export function mapCsvToProspects(rows: string[][]): CsvProspectRow[] {
     });
   }
   return result;
+}
+
+export type LoadedProspectRow = {
+  id: string;
+  name: string;
+  title: string | null;
+  company: string | null;
+  email: string | null;
+  linkedin_url: string | null;
+  website_url: string | null;
+};
+
+/**
+ * Load prospects from Twill #100.csv at project root. Used by /api/prospects/seed.
+ */
+export function loadProspectsFromCsv(): LoadedProspectRow[] {
+  const path = join(process.cwd(), "Twill #100.csv");
+  if (!existsSync(path)) return [];
+  const content = readFileSync(path, "utf-8");
+  const rows = parseCsv(content);
+  const prospects = mapCsvToProspects(rows);
+  return prospects.map((p) => ({
+    id: randomUUID(),
+    name: p.person_name || p.company || "Unknown",
+    title: p.title || null,
+    company: p.company || null,
+    email: p.email || null,
+    linkedin_url: p.linkedin_url || null,
+    website_url: p.website_url || null,
+  }));
 }
