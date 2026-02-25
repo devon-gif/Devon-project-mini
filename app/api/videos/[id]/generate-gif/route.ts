@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureStorageBucket } from "@/lib/supabase/storage";
 import { getDb, getVideoById, updateVideoGifAndStatus } from "@/lib/db";
 import { getStorageAdapter } from "@/lib/storage-adapter";
 import { gifFilePath, ensureUploadDirs } from "@/lib/storage";
@@ -273,6 +274,9 @@ export async function POST(
   };
 
   try {
+    await ensureStorageBucket(admin, "videos", { public: false });
+    await ensureStorageBucket(admin, "gifs", { public: true });
+
     const inputUrl = `supabase://videos/${storagePath}`;
 
     const { data: blob, error: downloadError } = await admin.storage.from("videos").download(storagePath);

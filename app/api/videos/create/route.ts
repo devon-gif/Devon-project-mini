@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureStorageBucket } from "@/lib/supabase/storage";
 import { getDb, insertVideo, getVideoById } from "@/lib/db";
 import { safeSlug } from "@/lib/storage";
 
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
+  await ensureStorageBucket(admin, "videos", { public: false });
   const ext = file.name.split(".").pop() || "mp4";
   const path = `${data.user.id}/${crypto.randomUUID()}.${ext}`;
   const { error: uploadError } = await admin.storage.from("videos").upload(path, file, { upsert: false });

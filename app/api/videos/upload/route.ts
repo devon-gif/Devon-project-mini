@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureStorageBucket } from "@/lib/supabase/storage";
 import { getDb, getVideoById, updateVideoPath } from "@/lib/db";
 import { getStorageAdapter } from "@/lib/storage-adapter";
 
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
   if (!file) return NextResponse.json({ error: "file is required" }, { status: 400 });
 
   const admin = createAdminClient();
+  await ensureStorageBucket(admin, "videos", { public: false });
+
   const ext = (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/gi, "") || "mp4";
 
   let storagePath: string;
