@@ -185,7 +185,8 @@ export function CreateVideo() {
       const gifRes = await fetch(`/api/videos/${videoId}/generate-gif`, { method: 'POST' });
       const gifData = await gifRes.json().catch(() => ({}));
       if (!gifRes.ok) {
-        throw new Error(gifData.error || 'GIF generation failed');
+        const msg = gifData.code === 'GIF_GEN_FAILED' ? (gifData.details || gifData.error) : (gifData.error || 'GIF generation failed');
+        throw new Error(msg);
       }
       if (gifData.skipped && gifData.message) {
         toast.info(gifData.message);

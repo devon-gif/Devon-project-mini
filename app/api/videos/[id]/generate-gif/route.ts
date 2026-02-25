@@ -4,60 +4,135 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getDb, getVideoById, updateVideoGifAndStatus } from "@/lib/db";
 import { getStorageAdapter } from "@/lib/storage-adapter";
 import { gifFilePath, ensureUploadDirs } from "@/lib/storage";
-import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
 const USE_LOCAL = process.env.USE_LOCAL_VIDEOS === "true";
 
-/** Resolve ffmpeg binary: prefer ffmpeg-static (npm), fallback to "ffmpeg" in PATH. */
-async function getFfmpegPath(): Promise<string> {
+const GIF_DURATION_SEC = 4;
+const GIF_WIDTH = 480;
+
+/** Resolve ffmpeg binary: ffmpeg-static (bundled). */
+function getFfmpegPath(): string {
   try {
-    const m = await import("ffmpeg-static");
-    const p = (m.default as string) || "";
-    if (p && fs.existsSync(p)) return p;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const m = require("ffmpeg-static") as { default?: string } | string;
+    const p = typeof m === "string" ? m : m?.default;
+    if (p && typeof p === "string" && fs.existsSync(p)) return p;
   } catch {
     // ignore
   }
   return "ffmpeg";
 }
 
-/** Run ffmpeg; capture stderr for server logs only. Rejects on non-zero exit. */
-function runFfmpeg(
-  ffmpegPath: string,
-  args: string[],
-  opts: { logLabel: string }
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let stderr = "";
-    const proc = spawn(ffmpegPath, args, { stdio: ["pipe", "pipe", "pipe"] });
-    proc.stderr?.on("data", (c) => {
-      stderr += c.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      // Log stderr server-side only; do not send to client
-      console.error(`[generate-gif] ${opts.logLabel} ffmpeg exit ${code}. stderr (last 2000 chars):`, stderr.slice(-2000));
-      reject(new Error(`ffmpeg exited ${code}`));
-    });
-    proc.on("error", (err) => {
-      console.error(`[generate-gif] ${opts.logLabel} spawn error:`, err);
-      reject(err);
-    });
-  });
+/** Resolve ffprobe binary for Render (ffprobe-static when available). */
+function getFfprobePath(): string | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const m = require("ffprobe-static");
+    const p = m?.path ?? m?.default?.path;
+    if (p && typeof p === "string" && fs.existsSync(p)) return p;
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
-/** Mark video ready and return success with optional gif_path; on GIF failure still return ok with gif_path null. */
+function failResponse(details: string, status = 500) {
+  return NextResponse.json(
+    { ok: false, code: "GIF_GEN_FAILED", error: details, details },
+    { status }
+  );
+}
+
 function successResponse(gif_path: string | null, skipped = false, message?: string) {
   return NextResponse.json({
     ok: true,
     gif_path,
     ...(skipped && { skipped: true, message: message ?? "GIF generation failed. Landing page is ready; use video as poster." }),
   });
+}
+
+/** Run GIF + thumbnail generation using fluent-ffmpeg. Returns { gifPath, thumbPath } or throws. */
+async function generateGifAndThumbnail(
+  inputPath: string,
+  videoId: string,
+  opts: { ffmpegPath: string; ffprobePath: string | null; logLabel: string }
+): Promise<{ gifPath: string; thumbPath: string }> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ffmpeg = require("fluent-ffmpeg") as typeof import("fluent-ffmpeg");
+  ffmpeg.setFfmpegPath(opts.ffmpegPath);
+  if (opts.ffprobePath) ffmpeg.setFfprobePath(opts.ffprobePath);
+
+  const tmpDir = os.tmpdir();
+  const gifOut = path.join(tmpDir, `gif-${videoId}-${Date.now()}.gif`);
+  const thumbOut = path.join(tmpDir, `thumb-${videoId}-${Date.now()}.jpg`);
+
+  // 1) ffprobe: log codec + duration
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg.ffprobe(inputPath, (err, metadata) => {
+      if (err) {
+        console.error(`[generate-gif] ${opts.logLabel} ffprobe error:`, err.message);
+        reject(err);
+        return;
+      }
+      const format = metadata?.format;
+      const videoStream = metadata?.streams?.find((s) => s.codec_type === "video");
+      const codec = videoStream?.codec_name ?? "unknown";
+      const duration = format?.duration ?? 0;
+      console.error(`[generate-gif] ${opts.logLabel} ffprobe videoId=${videoId} codec=${codec} duration=${duration}s`);
+      resolve();
+    });
+  });
+
+  // 2) Thumbnail: single frame at 0.5s, width 480 (-ss before -i for fast seek)
+  await new Promise<void>((resolve, reject) => {
+    let stderr = "";
+    const cmd = ffmpeg(inputPath)
+      .inputOptions(["-ss", "0.5"])
+      .outputOptions(["-vframes", "1", "-vf", `scale=${GIF_WIDTH}:-1`])
+      .output(thumbOut)
+      .on("error", (err: Error) => {
+        console.error(`[generate-gif] ${opts.logLabel} thumbnail error:`, err.message);
+        reject(err);
+      })
+      .on("stderr", (line: string) => {
+        stderr += line + "\n";
+      })
+      .on("end", () => resolve());
+    cmd.run();
+  });
+
+  // 3) GIF: first 3–5 seconds, width 480, palette
+  const filter = `fps=12,scale=${GIF_WIDTH}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`;
+  await new Promise<void>((resolve, reject) => {
+    let stderr = "";
+    const cmd = ffmpeg(inputPath)
+      .outputOptions([
+        "-t",
+        String(GIF_DURATION_SEC),
+        "-vf",
+        filter,
+        "-loop",
+        "0",
+      ])
+      .output(gifOut)
+      .on("error", (err: Error) => {
+        console.error(`[generate-gif] ${opts.logLabel} gif error:`, err.message, "stderr (last 2000):", stderr.slice(-2000));
+        reject(err);
+      })
+      .on("stderr", (line: string) => {
+        stderr += line + "\n";
+      })
+      .on("end", () => resolve());
+    cmd.run();
+  });
+
+  if (!fs.existsSync(gifOut)) throw new Error("GIF file was not created");
+  if (!fs.existsSync(thumbOut)) throw new Error("Thumbnail file was not created");
+
+  return { gifPath: gifOut, thumbPath: thumbOut };
 }
 
 export async function POST(
@@ -69,94 +144,91 @@ export async function POST(
   if (!data.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const videoId = id;
 
   if (USE_LOCAL) {
     try {
       const storage = getStorageAdapter();
       getDb();
-      const video = getVideoById(id);
+      const video = getVideoById(videoId);
       if (!video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
       const videoPath = video.video_path;
       if (!videoPath) return NextResponse.json({ error: "No video file uploaded" }, { status: 400 });
 
       if (!storage.canWriteFiles()) {
-        getDb().prepare("UPDATE videos SET status = ? WHERE id = ?").run("ready", id);
+        getDb().prepare("UPDATE videos SET status = ? WHERE id = ?").run("ready", videoId);
         return successResponse(null, true, "GIF generation not available in this environment. Video is still shareable.");
       }
 
-      const diskVideoPath = storage.getVideoDiskPath(id, videoPath);
+      const diskVideoPath = storage.getVideoDiskPath(videoId, videoPath);
       if (!diskVideoPath) {
-        getDb().prepare("UPDATE videos SET status = ? WHERE id = ?").run("ready", id);
+        getDb().prepare("UPDATE videos SET status = ? WHERE id = ?").run("ready", videoId);
         return successResponse(null, true, "Video file not readable here. Video is still shareable.");
       }
 
-      const { existsSync } = await import("fs");
-      if (!existsSync(diskVideoPath)) {
+      if (!fs.existsSync(diskVideoPath)) {
         return NextResponse.json({ error: "Video file not found on disk" }, { status: 404 });
       }
 
-      const ffmpegPath = await getFfmpegPath();
-      const tmpDir = os.tmpdir();
-      const tmpGif = path.join(tmpDir, `gif-${id}-${Date.now()}.gif`);
-
+      const ffmpegPath = getFfmpegPath();
+      const ffprobePath = getFfprobePath();
+      const { gifPath: tmpGif, thumbPath: tmpThumb } = await generateGifAndThumbnail(diskVideoPath, videoId, {
+        ffmpegPath,
+        ffprobePath,
+        logLabel: "local",
+      });
       try {
-        await runFfmpeg(ffmpegPath, [
-          "-y",
-          "-i", diskVideoPath,
-          "-t", "4",
-          "-vf", "fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
-          "-loop", "0",
-          tmpGif,
-        ], { logLabel: "local" });
-
         ensureUploadDirs();
-        const outGifPath = gifFilePath(id);
+        const outGifPath = gifFilePath(videoId);
         fs.copyFileSync(tmpGif, outGifPath);
-        const gifPublicPath = `/uploads/gifs/${id}.gif`;
-        updateVideoGifAndStatus(id, gifPublicPath);
+        const gifPublicPath = `/uploads/gifs/${videoId}.gif`;
+        updateVideoGifAndStatus(videoId, gifPublicPath);
         return successResponse(gifPublicPath);
       } finally {
-        try {
-          if (fs.existsSync(tmpGif)) fs.unlinkSync(tmpGif);
-        } catch (e) {
-          console.error("[generate-gif] local cleanup tmp:", e);
+        for (const p of [tmpGif, tmpThumb]) {
+          try {
+            if (p && fs.existsSync(p)) fs.unlinkSync(p);
+          } catch (e) {
+            console.error("[generate-gif] local cleanup tmp:", e);
+          }
         }
       }
     } catch (e) {
-      console.error("[generate-gif] local error:", e);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("[generate-gif] local error videoId=", videoId, "inputPath=", "local disk", "stack=", err.stack);
+      console.error("[generate-gif] local error message:", err.message);
       try {
         getDb();
-        getDb().prepare("UPDATE videos SET status = ? WHERE id = ?").run("ready", id);
+        getDb().prepare("UPDATE videos SET status = ? WHERE id = ?").run("ready", videoId);
       } catch (_) {}
       return successResponse(null, true, "GIF generation failed. Landing page is ready.");
     }
   }
 
-  // Production: Supabase storage — download video to tmp, generate GIF with ffmpeg-static, upload to gifs bucket
+  // Production: Supabase — download to /tmp/<id>.mp4, then generate GIF + thumbnail, upload both
   const admin = createAdminClient();
   const { data: video, error: fetchError } = await admin
     .from("videos")
     .select("id, video_path, owner_user_id")
-    .eq("id", id)
+    .eq("id", videoId)
     .single();
   if (fetchError || !video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
   if (video.owner_user_id !== data.user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const storagePath = video.video_path as string | null;
   if (!storagePath?.trim()) {
-    const { error: updateErr } = await admin
-      .from("videos")
-      .update({ status: "ready" })
-      .eq("id", id);
-    if (updateErr) console.error("[generate-gif] update status error:", updateErr);
+    await admin.from("videos").update({ status: "ready" }).eq("id", videoId);
     return successResponse(null, true, "No video file. Landing page is ready.");
   }
 
   const tmpDir = os.tmpdir();
-  const tmpInput = path.join(tmpDir, `video-${id}-${Date.now()}.mp4`);
-  const tmpGif = path.join(tmpDir, `gif-${id}-${Date.now()}.gif`);
+  const tmpInput = path.join(tmpDir, `${videoId}.mp4`);
+  let tmpGif = "";
+  let tmpThumb = "";
+
   const cleanup = async () => {
-    for (const p of [tmpInput, tmpGif]) {
+    for (const p of [tmpInput, tmpGif, tmpThumb]) {
+      if (!p) continue;
       try {
         await fs.promises.unlink(p);
       } catch {
@@ -166,49 +238,51 @@ export async function POST(
   };
 
   try {
+    const inputUrl = `supabase://videos/${storagePath}`;
+
     const { data: blob, error: downloadError } = await admin.storage.from("videos").download(storagePath);
     if (downloadError || !blob) {
-      console.error("[generate-gif] Supabase download error:", downloadError);
-      const { error: updateErr } = await admin.from("videos").update({ status: "ready" }).eq("id", id);
-      if (updateErr) console.error("[generate-gif] update status error:", updateErr);
+      console.error("[generate-gif] videoId=", videoId, "inputUrl=", inputUrl, "downloadError=", downloadError);
+      await admin.from("videos").update({ status: "ready" }).eq("id", videoId);
       return successResponse(null, true, "Could not download video. Landing page is ready.");
     }
 
-    const buf = Buffer.from(await blob.arrayBuffer());
-    await fs.promises.writeFile(tmpInput, buf);
+    await fs.promises.writeFile(tmpInput, Buffer.from(await blob.arrayBuffer()));
 
-    const ffmpegPath = await getFfmpegPath();
-    await runFfmpeg(ffmpegPath, [
-      "-y",
-      "-i", tmpInput,
-      "-t", "4",
-      "-vf", "fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse",
-      "-loop", "0",
-      tmpGif,
-    ], { logLabel: "production" });
+    const ffmpegPath = getFfmpegPath();
+    const ffprobePath = getFfprobePath();
+    const { gifPath, thumbPath } = await generateGifAndThumbnail(tmpInput, videoId, {
+      ffmpegPath,
+      ffprobePath,
+      logLabel: "production",
+    });
+    tmpGif = gifPath;
+    tmpThumb = thumbPath;
 
-    if (!fs.existsSync(tmpGif)) {
-      throw new Error("GIF file was not created");
-    }
+    const gifBuffer = await fs.promises.readFile(gifPath);
+    const thumbBuffer = await fs.promises.readFile(thumbPath);
+    const gifStoragePath = `${videoId}.gif`;
+    const thumbStoragePath = `${videoId}.jpg`;
 
-    const gifBuffer = await fs.promises.readFile(tmpGif);
-    const gifStoragePath = `${id}.gif`;
-    const { error: uploadError } = await admin.storage.from("gifs").upload(gifStoragePath, gifBuffer, {
+    const { error: gifUploadError } = await admin.storage.from("gifs").upload(gifStoragePath, gifBuffer, {
       contentType: "image/gif",
       upsert: true,
     });
-
-    if (uploadError) {
-      console.error("[generate-gif] Supabase gifs upload error:", uploadError);
-      const { error: updateErr } = await admin.from("videos").update({ status: "ready" }).eq("id", id);
-      if (updateErr) console.error("[generate-gif] update status error:", updateErr);
+    if (gifUploadError) {
+      console.error("[generate-gif] videoId=", videoId, "gif upload error:", gifUploadError);
+      await admin.from("videos").update({ status: "ready" }).eq("id", videoId);
       return successResponse(null, true, "GIF upload failed. Landing page is ready.");
     }
+
+    await admin.storage.from("gifs").upload(thumbStoragePath, thumbBuffer, {
+      contentType: "image/jpeg",
+      upsert: true,
+    });
 
     const { error: updateErr } = await admin
       .from("videos")
       .update({ status: "ready", gif_path: gifStoragePath })
-      .eq("id", id);
+      .eq("id", videoId);
     if (updateErr) {
       console.error("[generate-gif] update video row error:", updateErr);
       return successResponse(null, true, "GIF saved but status update failed.");
@@ -216,12 +290,19 @@ export async function POST(
 
     return successResponse(gifStoragePath);
   } catch (e) {
-    console.error("[generate-gif] production error:", e);
+    const err = e instanceof Error ? e : new Error(String(e));
+    const inputUrl = `supabase://videos/${storagePath ?? ""}`;
+    const ffmpegPath = getFfmpegPath();
+    const approxCmd = `ffmpeg -y -i /tmp/<id>.mp4 -t ${GIF_DURATION_SEC} -vf fps=12,scale=${GIF_WIDTH}:-1:flags=lanczos,... <out>.gif`;
+    console.error("[generate-gif] GIF_GEN_FAILED videoId=", videoId, "inputUrl=", inputUrl);
+    console.error("[generate-gif] ffmpegPath=", ffmpegPath);
+    console.error("[generate-gif] ffmpeg cmd (approx)=", approxCmd);
+    console.error("[generate-gif] error message=", err.message);
+    console.error("[generate-gif] stack=", err.stack);
     try {
-      const { error: updateErr } = await admin.from("videos").update({ status: "ready" }).eq("id", id);
-      if (updateErr) console.error("[generate-gif] update status error:", updateErr);
+      await admin.from("videos").update({ status: "ready" }).eq("id", videoId);
     } catch (_) {}
-    return successResponse(null, true, "GIF generation failed. Landing page is ready; use video as poster.");
+    return failResponse(err.message || "GIF generation failed", 500);
   } finally {
     await cleanup();
   }

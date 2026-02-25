@@ -1,0 +1,5 @@
+Place a tiny MP4 file here as sample.mp4 to use the GIF self-test endpoint:
+  GET /api/videos/self-test-gif
+  Header: x-admin-secret: <ADMIN_SECRET or SEED_TOKEN>
+
+Without this file, the self-test returns 404 with instructions.
