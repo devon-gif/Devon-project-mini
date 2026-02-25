@@ -151,7 +151,8 @@ function main() {
     }
   }
 
-  let prospects: Prospect[];
+  let prospects: Prospect[] = [];
+
   if (csvPath) {
     const content = fs.readFileSync(csvPath, "utf-8");
     const rows = parseCsv(content);
