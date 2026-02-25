@@ -147,8 +147,9 @@ Other columns: `owner_user_id`, `title`, `status`, `recipient_name`, `recipient_
 
 1. **Run the migration SQL**  
    - Open [Supabase Dashboard](https://supabase.com/dashboard) → your project → **SQL Editor**.  
-   - Copy the contents of `supabase/migrations/001_create_videos.sql` and run it.  
-   - This creates the `videos` and `video_events` tables (with `share_token`, `storage_video_path`, `storage_gif_path`, etc.) and indexes.
+   - Copy the contents of **`supabase/migrations/000_bootstrap_public_videos.sql`** and run it.  
+   - This creates the `public.videos` and `public.video_events` tables (with `video_path`, `gif_path`, `public_token`, etc.).  
+   - **If you see "Could not find the table 'public.videos' in the schema cache"** → run this bootstrap migration; the app will create Storage buckets automatically.
 
 2. **Create Storage buckets**  
    - Go to **Storage** in the dashboard.  
@@ -168,8 +169,8 @@ Other columns: `owner_user_id`, `title`, `status`, `recipient_name`, `recipient_
 
 1. **Apply migrations in Supabase**  
    - Supabase Dashboard → **SQL Editor**.  
-   - Run `supabase/migrations/001_accounts_people.sql` (accounts + people).  
-   - Optionally run `supabase/migrations/002_videos_events.sql` for video persistence.
+   - Run **`supabase/migrations/000_bootstrap_public_videos.sql`** first (creates `public.videos` and `public.video_events`).  
+   - Then run `supabase/migrations/001_accounts_people.sql` (accounts + people) if you use Leads.
 
 2. **Set Vercel env vars**  
    - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL  
