@@ -56,7 +56,7 @@ export function CreateVideo() {
 
   useEffect(() => {
     fetch('/api/people')
-      .then((r) => (r.ok ? r.json() : {}))
+      .then((r) => (r.ok ? r.json() : ({} as { people?: unknown[] })))
       .then((d) => {
         if (Array.isArray(d?.people) && d.people.length) {
           setApiPeople(
