@@ -699,6 +699,8 @@ function ProcessingState({
 }
 
 /* ─── Ready State ─── */
+type ReadyStatePerson = { name: string; company: string; email: string; id?: string; title?: string; linkedin?: string; emailStatus?: string };
+
 function ReadyState({
   person,
   videoTitle,
@@ -707,7 +709,7 @@ function ReadyState({
   onMarkSent,
   onOpenLanding,
 }: {
-  person: (typeof people)[0];
+  person: ReadyStatePerson;
   videoTitle: string;
   ctaLabel: string;
   createdVideo: { id: string; public_token: string };
