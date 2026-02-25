@@ -52,7 +52,7 @@ export function CreateVideo() {
   const [progress, setProgress] = useState(0);
   const [createdVideo, setCreatedVideo] = useState<{ id: string; public_token: string } | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
-  const [apiPeople, setApiPeople] = useState<Array<{ id: string; name: string; title: string; company: string; email: string }>>([]);
+  const [apiPeople, setApiPeople] = useState<Array<{ id: string; name: string; title: string; company: string; email: string; linkedin?: string; emailStatus?: string }>>([]);
 
   useEffect(() => {
     fetch('/api/people')
@@ -60,12 +60,14 @@ export function CreateVideo() {
       .then((d) => {
         if (Array.isArray(d?.people) && d.people.length) {
           setApiPeople(
-            d.people.map((p: { id: string; name: string; title?: string; company?: string; email?: string }) => ({
+            d.people.map((p: { id: string; name: string; title?: string; company?: string; email?: string; linkedin_url?: string }) => ({
               id: p.id,
               name: p.name,
               title: p.title ?? '',
               company: p.company ?? '',
               email: p.email ?? '',
+              linkedin: p.linkedin_url,
+              emailStatus: 'unknown',
             }))
           );
         }
@@ -306,7 +308,7 @@ export function CreateVideo() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <StatusChip
-                        label={p.emailStatus}
+                        label={p.emailStatus ?? 'unknown'}
                         variant={p.emailStatus === 'verified' ? 'success' : 'warning'}
                       />
                       {selectedPerson === p.id && (
@@ -343,7 +345,7 @@ export function CreateVideo() {
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <StatusChip
-                        label={person.emailStatus}
+                        label={person.emailStatus ?? 'unknown'}
                         variant={person.emailStatus === 'verified' ? 'success' : 'warning'}
                       />
                       {person.linkedin && (
