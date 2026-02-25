@@ -4,6 +4,7 @@ import { X, Mail, Phone, Linkedin, Clock, CheckSquare, Video, Globe, ExternalLin
 import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 import { StatusChip, TierBadge } from './StatusChip';
+import { PersonAvatar } from './PersonAvatar';
 import { people, emailThreads, tasks } from '../data/mockData';
 import type { Account } from '../data/mockData';
 import type { SidePanelPerson } from '../pages/Accounts';
@@ -186,9 +187,7 @@ export function AccountSidePanel({
             {(account.contactName || account.contactEmail) && accountPeople.length === 0 && !showResearchFallback && (
               <div className="flex items-center justify-between group">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[10px] text-blue-600 font-medium">
-                    {(account.contactName || '?').slice(0, 2)}
-                  </div>
+                  <PersonAvatar name={account.contactName ?? null} company={account.company} size={32} showFindPhoto={true} />
                   <div>
                     <p className="text-sm text-gray-800">{account.contactName || 'Contact'}</p>
                     <p className="text-[11px] text-gray-400">{account.contactTitle || account.contactEmail || ''}</p>
@@ -213,13 +212,12 @@ export function AccountSidePanel({
               const title = (person as { title?: string }).title ?? '';
               const email = (person as { email?: string }).email ?? null;
               const linkedinUrl = (person as SidePanelPerson).linkedin_url ?? (person as { linkedin?: string }).linkedin ?? null;
+              const avatarUrl = (person as SidePanelPerson).avatar_url ?? null;
               const phone = (person as { phone?: string }).phone;
               return (
                 <div key={person.id} className="flex items-center justify-between group">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[10px] text-blue-600" style={{ fontWeight: 500 }}>
-                      {String(name).split(' ').map(n => n[0]).join('') || '?'}
-                    </div>
+                    <PersonAvatar name={name || null} avatar_url={avatarUrl} company={account.company} size={32} showFindPhoto={true} />
                     <div>
                       <p className="text-sm text-gray-800">{name || 'Contact'}</p>
                       <p className="text-[11px] text-gray-400">{title || email || ''}</p>

@@ -9,7 +9,7 @@ import twillLogo from 'figma:asset/cfb522460dc27b08bb7705cf0b5b5ed312f6b215.png'
 
 const navItems = [
   { icon: Rocket, label: 'Mission Control', path: '/' },
-  { icon: Building2, label: 'Accounts', path: '/accounts' },
+  { icon: Building2, label: 'Leads', path: '/accounts' },
   { icon: Video, label: 'Videos', path: '/videos' },
   { icon: Inbox, label: 'Inbox', path: '/inbox' },
   { icon: CheckSquare, label: 'Tasks', path: '/tasks' },

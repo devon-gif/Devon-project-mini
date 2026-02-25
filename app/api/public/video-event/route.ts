@@ -4,15 +4,19 @@ import { getDb, resolveVideoId, insertEvent, updateVideoStatusFromEvent } from "
 
 const EVENT_TYPES = [
   "page_view",
+  "landing_view",
   "play",
+  "video_play",
   "progress_25",
   "progress_50",
   "progress_75",
   "progress_100",
+  "watch_progress",
   "cta_click",
   "booking",
   "gif_click",
   "video_complete",
+  "forward_click",
 ] as const;
 
 export async function POST(request: Request) {
@@ -63,11 +67,22 @@ export async function POST(request: Request) {
   const video_id = video.id;
 
   const progressPercent =
-    event_type === "progress_25" ? 25 : event_type === "progress_50" ? 50 : event_type === "progress_75" ? 75 : event_type === "progress_100" ? 100 : null;
+    event_type === "progress_25"
+      ? 25
+      : event_type === "progress_50"
+        ? 50
+        : event_type === "progress_75"
+          ? 75
+          : event_type === "progress_100"
+            ? 100
+            : event_type === "watch_progress" && typeof progress === "number"
+              ? Math.min(100, Math.max(0, Math.round(progress)))
+              : null;
+  const normalizedView = event_type === "landing_view" ? "page_view" : event_type;
 
   // Dedupe: one page_view per (video_id, session_id)
   const sid = session_id ?? "";
-  if (event_type === "page_view" && sid) {
+  if ((event_type === "page_view" || event_type === "landing_view") && sid) {
     const { data: existing } = await admin
       .from("video_events")
       .select("id")
@@ -79,32 +94,38 @@ export async function POST(request: Request) {
     if (existing) return NextResponse.json({ ok: true, duplicate: true });
   }
 
-  // Dedupe: one progress_X per (video_id, session_id, event_type)
-  if (event_type.startsWith("progress_") && sid) {
+  // Dedupe: one progress per (video_id, session_id, progress_percent)
+  const progressEventType = progressPercent != null ? "watch_progress" : null;
+  if ((event_type.startsWith("progress_") || event_type === "watch_progress") && sid && progressPercent != null) {
     const { data: existing } = await admin
       .from("video_events")
       .select("id")
       .eq("video_id", video_id)
       .eq("session_id", sid)
-      .eq("event_type", event_type)
+      .eq("event_type", "watch_progress")
+      .eq("progress_percent", progressPercent)
       .limit(1)
       .maybeSingle();
     if (existing) return NextResponse.json({ ok: true, duplicate: true });
   }
 
   const storedEventType =
-    progressPercent != null ? "watch_progress" : event_type === "play" ? "video_play" : event_type;
+    progressEventType ?? (event_type === "play" || event_type === "video_play" ? "video_play" : normalizedView);
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "";
+  const ipHash = ip ? Buffer.from(ip).toString("base64").slice(0, 44) : "";
+  const userAgent = request.headers.get("user-agent") ?? "";
   const insertPayload: Record<string, unknown> = {
     video_id,
     session_id: sid,
     event_type: storedEventType,
+    meta: { ip_hash: ipHash || undefined, user_agent: userAgent || undefined },
   };
   if (progressPercent != null) insertPayload.progress_percent = progressPercent;
   const { error: insertErr } = await admin.from("video_events").insert(insertPayload);
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
   const updates: Record<string, number | string> = {};
-  if (event_type === "page_view") {
+  if (event_type === "page_view" || event_type === "landing_view") {
     updates.stats_views = (video.stats_views ?? 0) + 1;
     updates.status = (video.status === "ready" || video.status === "sent") ? "viewed" : (video.status ?? "draft");
   }
@@ -112,16 +133,19 @@ export async function POST(request: Request) {
     updates.stats_clicks = (video.stats_clicks ?? 0) + 1;
     updates.status = "clicked";
   }
-  if (event_type === "progress_25") {
+  if (event_type === "forward_click") {
+    updates.stats_clicks = (video.stats_clicks ?? 0) + 1;
+  }
+  if (progressPercent === 25 || event_type === "progress_25") {
     updates.stats_watch_25 = (video.stats_watch_25 ?? 0) + 1;
   }
-  if (event_type === "progress_50") {
+  if (progressPercent === 50 || event_type === "progress_50") {
     updates.stats_watch_50 = (video.stats_watch_50 ?? 0) + 1;
   }
-  if (event_type === "progress_75") {
+  if (progressPercent === 75 || event_type === "progress_75") {
     updates.stats_watch_75 = (video.stats_watch_75 ?? 0) + 1;
   }
-  if (event_type === "progress_100") {
+  if (progressPercent === 100 || event_type === "progress_100") {
     updates.stats_watch_100 = (video.stats_watch_100 ?? 0) + 1;
     updates.status = "viewed";
   }

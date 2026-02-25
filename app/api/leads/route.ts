@@ -8,21 +8,72 @@ export type LeadContact = {
   title: string | null;
   email: string | null;
   linkedin_url: string | null;
+  avatar_url?: string | null;
 };
 
+/** Normalize tier from DB to P0 | P1 | P2 */
+function normalizeTier(t: string | null): "P0" | "P1" | "P2" {
+  const s = (t || "").trim().toUpperCase();
+  if (s.startsWith("P0")) return "P0";
+  if (s.startsWith("P2")) return "P2";
+  return "P1";
+}
+
 /**
- * GET /api/leads — list leads from Twill #100 CSV and optional contacts per lead.
- * Auth required. Contacts are matched by company/domain from existing people dataset when available.
+ * GET /api/leads — list leads from Supabase (uploaded accounts + people) when available,
+ * otherwise from Twill #100 CSV. Auth required.
  */
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Prefer Supabase: accounts + people (e.g. from seed/import of 100 people)
+  const { data: accounts, error: accountsError } = await supabase
+    .from("accounts")
+    .select("id, name, domain, website_url, linkedin_url, tier, status, score")
+    .order("name");
+
+  if (!accountsError && accounts?.length) {
+    const ids = accounts.map((a) => a.id);
+    const { data: people } = await supabase
+      .from("people")
+      .select("id, account_id, name, title, email, linkedin_url, avatar_url")
+      .in("account_id", ids)
+      .order("account_id");
+
+    const contactsByLeadId: Record<string, LeadContact[]> = {};
+    for (const p of people ?? []) {
+      const aid = p.account_id;
+      if (!contactsByLeadId[aid]) contactsByLeadId[aid] = [];
+      contactsByLeadId[aid].push({
+        id: p.id,
+        name: p.name ?? null,
+        title: p.title ?? null,
+        email: p.email ?? null,
+        linkedin_url: p.linkedin_url ?? null,
+        avatar_url: (p as { avatar_url?: string | null }).avatar_url ?? null,
+      });
+    }
+
+    const leads: LeadRow[] = accounts.map((a) => ({
+      id: a.id,
+      company: a.name ?? "—",
+      domain: a.domain ?? "—",
+      tier: normalizeTier(a.tier),
+      industry: "—",
+      status: a.status ?? "Prospecting",
+      lastTouch: "No touch",
+      nextAction: "Add first touch",
+      signalScore: typeof a.score === "number" ? a.score : 0,
+    }));
+
+    return NextResponse.json({ leads, contactsByLeadId });
+  }
+
+  // Fallback: CSV-backed leads (e.g. twill-100.csv)
   const leads = getLeadsFromCsv();
   const contactsByLeadId: Record<string, LeadContact[]> = {};
-
-  // Try to attach people by company match (mockData.people or Supabase people)
   const companyToLeadId = new Map<string, string>();
   leads.forEach((l) => {
     const key = l.company.trim().toLowerCase();
@@ -43,6 +94,7 @@ export async function GET() {
             title: p.title ?? null,
             email: p.email ?? null,
             linkedin_url: p.linkedin ? (p.linkedin.startsWith("http") ? p.linkedin : `https://${p.linkedin}`) : null,
+            avatar_url: (p as { avatar_url?: string | null }).avatar_url ?? null,
           });
         }
       });

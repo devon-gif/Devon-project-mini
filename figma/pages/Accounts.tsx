@@ -9,6 +9,7 @@ import {
   Search, Filter, Plus, ChevronDown,
   Mail, Linkedin, Phone, CheckSquare, Globe, ExternalLink,
 } from 'lucide-react';
+import { PersonAvatar } from '../components/PersonAvatar';
 
 export type SidePanelPerson = {
   id: string;
@@ -16,6 +17,7 @@ export type SidePanelPerson = {
   title: string | null;
   email: string | null;
   linkedin_url?: string | null;
+  avatar_url?: string | null;
 };
 
 export type Lead = Account & {
@@ -202,9 +204,19 @@ export function Accounts() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-xs text-blue-600" style={{ fontWeight: 500 }}>
-                          {lead.company.slice(0, 2)}
-                        </div>
+                        {(contactsByLeadId[lead.id]?.length ?? 0) > 0 ? (
+                          <PersonAvatar
+                            name={contactsByLeadId[lead.id][0].name}
+                            avatar_url={contactsByLeadId[lead.id][0].avatar_url}
+                            company={lead.company}
+                            size={32}
+                            showFindPhoto={false}
+                          />
+                        ) : (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-xs text-blue-600" style={{ fontWeight: 500 }}>
+                            {lead.company.slice(0, 2)}
+                          </div>
+                        )}
                         <div>
                           <p className="text-sm text-gray-800">{lead.company}</p>
                           {(lead.peopleCount ?? 0) > 0 && (

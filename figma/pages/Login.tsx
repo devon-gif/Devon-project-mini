@@ -21,8 +21,8 @@ export function Login() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") || "/app";
 
-  const [email, setEmail] = useState('alex@withtwill.com');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState('heydevon@gmail.com');
+  const [password, setPassword] = useState('Rae121989!');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

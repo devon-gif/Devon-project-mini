@@ -79,6 +79,20 @@ Open [http://localhost:3000](http://localhost:3000). Log in → **Accounts** (re
 
 On Vercel (read-only FS), GIF generation is disabled; the app still runs and shows: “GIF generation disabled in this environment. Video is still shareable.”
 
+### 6b. How to run the GIF pipeline self-test
+
+Use this to confirm GIF generation works (e.g. on Render):
+
+1. **Add a tiny MP4** at `public/sample.mp4` (a few seconds is enough).
+2. **Call the endpoint** with your admin secret (same as seed):
+   ```bash
+   curl -H "x-admin-secret: YOUR_ADMIN_SECRET" "https://your-app.onrender.com/api/videos/self-test-gif"
+   ```
+   Or with Bearer token: `Authorization: Bearer YOUR_ADMIN_SECRET`.
+3. **Success:** JSON with `ok: true`, `gif_url`, `thumbnail_url`, `codec`, `duration_seconds`.
+4. **No sample file:** 404 with instructions to add `public/sample.mp4`.
+5. **Failure:** 500 with `code: GIF_GEN_FAILED`; check server logs for ffmpeg stderr.
+
 ### 7. Video storage: Supabase (recommended for production)
 
 For **persistent** video hosting (past videos accessible forever), use **Supabase Storage** instead of local filesystem. Do **not** set `USE_LOCAL_VIDEOS=true` on Vercel.

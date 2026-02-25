@@ -51,12 +51,12 @@ export function Accounts() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-gray-900">Accounts</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{accounts.length} companies tracked</p>
+            <h1 className="text-gray-900">Leads</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{accounts.length} leads tracked</p>
           </div>
           <button className="flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm text-white hover:bg-[#1D4ED8] transition-all">
             <Plus className="h-4 w-4" />
-            Add Account
+            Add Lead
           </button>
         </div>
 
@@ -68,7 +68,7 @@ export function Accounts() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search accounts..."
+                placeholder="Search leads..."
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 transition-colors"
               />
             </div>
