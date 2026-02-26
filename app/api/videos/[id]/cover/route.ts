@@ -3,10 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase-server';
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const formData  = await req.formData();
     const coverFile = formData.get('cover') as File | null;
 
