@@ -52,7 +52,7 @@ export function EmailSnippetPanel({
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const landingUrl = landingUrlProp || (landingPageSlug ? `${baseUrl}/share/${landingPageSlug}` : `${baseUrl}/share/demo`);
   const firstName = recipientName.split(' ')[0];
-  const gifUrl = landingPageSlug ? `${baseUrl}/uploads/gifs/${landingPageSlug}.gif` : `https://cdn.withtwill.com/gifs/${landingPageSlug || 'demo'}.gif`;
+  const coverUrl = landingPageSlug ? `${baseUrl}/api/videos/cover/${landingPageSlug}` : '';
 
   const subject = subjectLine || `Quick idea for ${company}`;
 
@@ -62,7 +62,7 @@ export function EmailSnippetPanel({
   </p>
   <a href="${landingUrl}" style="display:block;text-decoration:none;">
     <div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid #E5E7EB;">
-      <img src="${gifUrl}" alt="Personalized video for ${firstName}" style="width:100%;display:block;border-radius:12px;" />
+      <img src="${coverUrl}" alt="Personalized video for ${firstName}" style="width:100%;display:block;border-radius:12px;" />
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;background:rgba(255,255,255,0.9);border-radius:50%;display:flex;align-items:center;justify-content:center;">
         <div style="width:0;height:0;border-left:14px solid #1A1A2E;border-top:9px solid transparent;border-bottom:9px solid transparent;margin-left:3px;"></div>
       </div>
@@ -277,7 +277,7 @@ If you're not the right person, who should I talk to?
             </div>
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-[11px] text-amber-700">Spam-safe: No attachments included. GIF is hosted externally.</p>
+              <p className="text-[11px] text-amber-700">Spam-safe: No attachments. Cover image + link hosted externally.</p>
             </div>
           </div>
         )}

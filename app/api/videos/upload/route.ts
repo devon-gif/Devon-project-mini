@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   let storagePath: string;
   if (videoId) {
     storagePath = `${videoId}.${ext}`;
-    const { error } = await admin.storage.from("videos").upload(storagePath, file, { upsert: false });
+    const { error } = await admin.storage.from("videos").upload(storagePath, file, { upsert: true });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const { error: updateErr } = await admin
       .from("videos")

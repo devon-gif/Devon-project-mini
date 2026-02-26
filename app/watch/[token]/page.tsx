@@ -11,7 +11,7 @@ export default async function WatchPage({
   const admin = createAdminClient();
   const { data: video, error } = await admin
     .from("videos")
-    .select("id, title, video_path, gif_path, status, recipient_name, recipient_company, cta_type, cta_url, public_token")
+    .select("id, title, video_path, cover_path, gif_path, status, recipient_name, recipient_company, cta_type, cta_url, public_token")
     .eq("public_token", token)
     .single();
   if (error || !video) return notFound();
@@ -19,10 +19,15 @@ export default async function WatchPage({
 
   const { data: urlData } = admin.storage.from("videos").getPublicUrl(video.video_path || "");
   const videoUrl = urlData?.publicUrl ?? "";
-  let gifUrl: string | null = null;
-  if (video.gif_path) {
-    const g = admin.storage.from("gifs").getPublicUrl(video.gif_path);
-    gifUrl = g.data?.publicUrl ?? null;
+  let posterUrl: string | null = null;
+  const coverPath = (video.cover_path as string)?.trim();
+  const gifPath = (video.gif_path as string)?.trim();
+  if (coverPath) {
+    const c = admin.storage.from("covers").getPublicUrl(coverPath);
+    posterUrl = c.data?.publicUrl ?? null;
+  } else if (gifPath) {
+    const g = admin.storage.from("gifs").getPublicUrl(gifPath);
+    posterUrl = g.data?.publicUrl ?? null;
   }
 
   return (
@@ -32,7 +37,7 @@ export default async function WatchPage({
       recipientName={video.recipient_name ?? ""}
       recipientCompany={video.recipient_company ?? ""}
       videoUrl={videoUrl}
-      gifUrl={gifUrl}
+      gifUrl={posterUrl}
       ctaType={(video.cta_type as "book" | "forward") ?? "book"}
       ctaUrl={video.cta_url ?? ""}
     />

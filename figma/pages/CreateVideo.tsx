@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
@@ -13,16 +13,16 @@ import {
   ArrowLeft, ArrowRight, Check, Search, Linkedin,
   Upload, Video, Clock, FileVideo, HardDrive, Monitor,
   ChevronDown, AlertCircle, Loader2, CheckCircle2,
-  ExternalLink, Play, RefreshCw, Calendar,
+  ExternalLink, Play, RefreshCw, Calendar, Camera, Image,
 } from 'lucide-react';
 
 const steps = [
   { id: 1, label: 'Select Recipient' },
   { id: 2, label: 'Upload Video' },
-  { id: 3, label: 'Generate & Send' },
+  { id: 3, label: 'Send Video' },
 ];
 
-type ProcessingPhase = 'uploading' | 'generating_gif' | 'creating_landing' | 'done' | 'error';
+type ProcessingPhase = 'uploading' | 'creating_landing' | 'done' | 'error';
 
 export function CreateVideo() {
   const router = useRouter();
@@ -50,7 +50,7 @@ export function CreateVideo() {
   // Step 3
   const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>('uploading');
   const [progress, setProgress] = useState(0);
-  const [createdVideo, setCreatedVideo] = useState<{ id: string; public_token: string; gif_path?: string | null } | null>(null);
+  const [createdVideo, setCreatedVideo] = useState<{ id: string; public_token: string; cover_path?: string | null } | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [apiPeople, setApiPeople] = useState<Array<{ id: string; name: string; title: string; company: string; email: string; linkedin?: string; emailStatus?: string }>>([]);
 
@@ -165,7 +165,7 @@ export function CreateVideo() {
         }
         const { storagePath } = await uploadRes.json();
         setProgress(25);
-        setProcessingPhase('generating_gif');
+        setProcessingPhase('creating_landing');
         const createRes = await fetch('/api/videos/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -180,19 +180,9 @@ export function CreateVideo() {
         public_token = video.public_token;
       }
 
-      setProgress(50);
-      setProcessingPhase('creating_landing');
-      const gifRes = await fetch(`/api/videos/${videoId}/generate-gif`, { method: 'POST' });
-      const gifData = await gifRes.json().catch(() => ({}));
-      if (!gifRes.ok) {
-        const msg = gifData.code === 'GIF_GEN_FAILED' ? (gifData.details || gifData.error) : (gifData.error || 'GIF generation failed');
-        throw new Error(msg);
-      }
-      if (gifData.skipped && gifData.message) {
-        toast.info(gifData.message);
-      }
       setProgress(100);
-      setCreatedVideo({ id: videoId, public_token, gif_path: gifData.gif_path ?? null });
+      setProcessingPhase('creating_landing');
+      setCreatedVideo({ id: videoId, public_token, cover_path: null });
       setProcessingPhase('done');
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Something went wrong');
@@ -222,7 +212,7 @@ export function CreateVideo() {
           <div className="flex-1">
             <h1 className="text-gray-900">Create Video</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              Upload a video, generate GIF preview + landing page, copy email snippet
+              Send a video — upload your video, add a custom PNG cover for the email, copy the link
             </p>
           </div>
         </div>
@@ -513,7 +503,7 @@ export function CreateVideo() {
               <div className="flex items-start gap-2 mt-4 rounded-lg bg-blue-50 border border-blue-100 p-2.5">
                 <Video className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
                 <p className="text-[11px] text-blue-700">
-                  No attachments. Email will use a GIF preview + hosted landing page link.
+                  No attachments. Upload a custom PNG image as the video cover for the email.
                 </p>
               </div>
             </GlassCard>
@@ -533,6 +523,7 @@ export function CreateVideo() {
                 videoTitle={videoTitle}
                 ctaLabel={ctaLabel}
                 createdVideo={createdVideo}
+                videoFile={videoFile}
                 onMarkSent={async () => {
                   const res = await fetch(`/api/videos/${createdVideo.id}`, {
                     method: 'PATCH',
@@ -546,6 +537,7 @@ export function CreateVideo() {
                   const url = typeof window !== 'undefined' ? `${window.location.origin}/share/${createdVideo.public_token}` : '';
                   if (url) window.open(url, '_blank');
                 }}
+                onCoverUploaded={(path) => setCreatedVideo((v) => (v ? { ...v, cover_path: path } : v))}
               />
             )}
 
@@ -580,7 +572,7 @@ export function CreateVideo() {
                   className="flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm text-white hover:bg-[#1D4ED8] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Video className="h-4 w-4" />
-                  Generate Landing Page + GIF
+                  Send Video
                 </button>
               )}
               {currentStep === 1 && (
@@ -613,13 +605,11 @@ function ProcessingState({
 }) {
   const phaseLabels: Record<string, string> = {
     uploading: 'Uploading video...',
-    generating_gif: 'Generating GIF preview...',
     creating_landing: 'Creating landing page...',
   };
 
   const phaseSteps = [
     { key: 'uploading', label: 'Upload video' },
-    { key: 'generating_gif', label: 'Generate GIF preview' },
     { key: 'creating_landing', label: 'Create landing page' },
   ];
 
@@ -710,23 +700,91 @@ function ReadyState({
   videoTitle,
   ctaLabel,
   createdVideo,
+  videoFile,
   onMarkSent,
   onOpenLanding,
+  onCoverUploaded,
 }: {
   person: ReadyStatePerson;
   videoTitle: string;
   ctaLabel: string;
-  createdVideo: { id: string; public_token: string; gif_path?: string | null };
+  createdVideo: { id: string; public_token: string; cover_path?: string | null };
+  videoFile: File | null;
   onMarkSent: () => void | Promise<void>;
   onOpenLanding: () => void;
+  onCoverUploaded?: (coverPath: string) => void;
 }) {
+  const [coverPath, setCoverPath] = useState<string | null>(createdVideo.cover_path ?? null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const landingUrl = typeof window !== 'undefined' ? `${window.location.origin}/share/${createdVideo.public_token}` : '';
   const subjectLine = `Quick idea for ${person.company}, ${person.name.split(' ')[0]}`;
-  const hasGif = !!createdVideo.gif_path;
-  const supabaseUrl = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : '';
-  const gifUrl = hasGif && supabaseUrl && createdVideo.gif_path
-    ? `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/gifs/${createdVideo.gif_path}`
-    : null;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const coverUrl = coverPath ? `${baseUrl}/api/videos/cover/${createdVideo.public_token}?v=${coverPath}` : null;
+
+  const handleCaptureFrame = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) {
+      toast.error('Play the video first, then pause at the frame you want');
+      return;
+    }
+    setUploadingCover(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas not supported');
+      ctx.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Failed to capture frame');
+      const formData = new FormData();
+      formData.set('file', new File([blob], 'cover.png', { type: 'image/png' }));
+      const res = await fetch(`/api/videos/${createdVideo.id}/cover`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Upload failed');
+      }
+      const { cover_path } = await res.json();
+      setCoverPath(cover_path);
+      onCoverUploaded?.(cover_path);
+      toast.success('Cover image set');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to capture frame');
+    } finally {
+      setUploadingCover(false);
+    }
+  }, [createdVideo.id, onCoverUploaded]);
+
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(file.type)) {
+      toast.error('Please upload a PNG or JPEG image');
+      return;
+    }
+    setUploadingCover(true);
+    try {
+      const formData = new FormData();
+      formData.set('file', file);
+      const res = await fetch(`/api/videos/${createdVideo.id}/cover`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Upload failed');
+      }
+      const { cover_path } = await res.json();
+      setCoverPath(cover_path);
+      onCoverUploaded?.(cover_path);
+      toast.success('Cover image set');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploadingCover(false);
+      e.target.value = '';
+    }
+  }, [createdVideo.id, onCoverUploaded]);
 
   return (
     <div className="space-y-5">
@@ -739,38 +797,73 @@ function ReadyState({
           <div className="flex-1">
             <h3 className="text-gray-800">Video Ready!</h3>
             <p className="text-xs text-gray-400">
-              {hasGif ? 'Landing page + GIF preview generated' : 'Landing page ready (video thumbnail as preview)'}
+              {coverPath ? 'Landing page + cover ready' : 'Upload a custom PNG as the video cover for the email'}
             </p>
           </div>
           <VideoStatusChip status="ready" size="md" />
         </div>
 
-        {/* Preview area */}
+        {/* Cover image section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {/* Thumbnail / GIF Preview */}
           <div className="rounded-xl border border-gray-200 overflow-hidden">
             <div className="text-[10px] text-gray-400 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
-              {hasGif ? 'GIF Preview' : 'Thumbnail'}
+              Cover (email preview)
             </div>
-            <div className="relative aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
-              {gifUrl ? (
-                <img src={gifUrl} alt="Video GIF preview" className="w-full h-full object-contain" />
+            <div className="relative aspect-video bg-gray-100 flex flex-col items-center justify-center overflow-hidden">
+              {coverUrl ? (
+                <img src={coverUrl} alt="Video cover" className="w-full h-full object-contain" />
               ) : (
-                <div className="w-[75%] h-[75%] rounded-lg border border-gray-200 bg-white shadow-sm flex items-center justify-center text-gray-400 text-xs">
-                  No preview (GIF generation skipped)
-                </div>
+                <>
+                  {videoFile && (
+                    <video
+                      ref={videoRef}
+                      src={URL.createObjectURL(videoFile)}
+                      className="w-full h-full object-contain"
+                      muted
+                      playsInline
+                      onLoadedData={() => {}}
+                    />
+                  )}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/20">
+                    <p className="text-xs text-white drop-shadow">Upload PNG or capture frame</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCaptureFrame}
+                        disabled={uploadingCover || !videoFile}
+                        className="flex items-center gap-1 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-gray-800 hover:bg-white disabled:opacity-50"
+                      >
+                        <Camera className="h-3 w-3" />Capture frame
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingCover}
+                        className="flex items-center gap-1 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-gray-800 hover:bg-white disabled:opacity-50"
+                      >
+                        <Image className="h-3 w-3" />Upload PNG
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                      />
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
 
-          {/* Landing page preview */}
           <div className="rounded-xl border border-gray-200 overflow-hidden">
             <div className="text-[10px] text-gray-400 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
-              Video thumbnail (poster on landing page)
+              Landing page
             </div>
             <div className="relative aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
-              {gifUrl ? (
-                <img src={gifUrl} alt="Landing page poster" className="w-full h-full object-contain" />
+              {coverUrl ? (
+                <img src={coverUrl} alt="Landing poster" className="w-full h-full object-contain" />
               ) : (
                 <div className="w-[75%] h-[75%] rounded-lg border border-gray-200 bg-white shadow-sm flex items-center justify-center text-gray-400 text-xs text-center px-2">
                   Video plays on share page
@@ -836,14 +929,14 @@ function ErrorState({ message, onRetry }: { message?: string; onRetry: () => voi
         </div>
         <div>
           <h3 className="text-gray-800">Something went wrong</h3>
-          <p className="text-xs text-red-400">{message || 'GIF generation failed. Please try again.'}</p>
+          <p className="text-xs text-red-400">{message || 'Something went wrong. Please try again.'}</p>
         </div>
       </div>
       <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 mb-4">
         <p className="text-sm text-red-700">
           {message
             ? message
-            : "We couldn't generate the GIF preview from your video. This can happen with unsupported codecs or corrupted files."}
+            : "Upload or processing failed. Try re-uploading your video."}
         </p>
         <p className="text-xs text-red-500 mt-2">
           Try re-uploading or contact{' '}

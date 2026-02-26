@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
@@ -10,16 +10,13 @@ import {
   Bot, Sparkles, Send, Paperclip, ChevronDown,
   Reply, Forward, Archive, MoreHorizontal, Star,
   ThumbsUp, Timer, UserX, CornerUpRight, XCircle,
-  CheckSquare, Video,
+  CheckSquare, Video, Loader2, Building2,
 } from 'lucide-react';
 import type { EmailThread } from '../data/mockData';
+import type { InboxThread } from '@/app/api/inbox/route';
 import { toast } from 'sonner';
 
-const folders = [
-  { id: 'all', label: 'All Mail', icon: InboxIcon, count: 5 },
-  { id: 'unreplied', label: 'Unreplied', icon: MailWarning, count: 2 },
-  { id: 'followup', label: 'Needs Follow-up', icon: Clock, count: 1 },
-];
+type ThreadLike = EmailThread | InboxThread;
 
 const labelVariant: Record<string, 'accent' | 'success' | 'warning' | 'info' | 'purple'> = {
   'Hot': 'accent',
@@ -37,21 +34,62 @@ const classificationChips = [
   { id: 'unsubscribe', label: 'Unsubscribe', icon: XCircle, color: 'bg-gray-100 text-gray-600 border-gray-200' },
 ];
 
+const folders = [
+  { id: 'all', label: 'All Mail', icon: InboxIcon },
+  { id: 'unreplied', label: 'Unreplied', icon: MailWarning },
+  { id: 'followup', label: 'Needs Follow-up', icon: Clock },
+];
+
 export function Inbox() {
   const router = useRouter();
   const [activeFolder, setActiveFolder] = useState('all');
-  const [selectedThread, setSelectedThread] = useState<EmailThread | null>(emailThreads[0]);
+  const [threads, setThreads] = useState<ThreadLike[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedThread, setSelectedThread] = useState<ThreadLike | null>(null);
   const [replyText, setReplyText] = useState('');
   const [search, setSearch] = useState('');
   const [showAISummary, setShowAISummary] = useState(true);
   const [threadClassifications, setThreadClassifications] = useState<Record<string, string>>({});
 
-  const filteredThreads = emailThreads.filter(t => {
-    if (search && !t.subject.toLowerCase().includes(search.toLowerCase()) && !t.from.toLowerCase().includes(search.toLowerCase())) return false;
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/inbox')
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const apiThreads = (data.threads ?? []) as InboxThread[];
+        if (apiThreads.length > 0) {
+          setThreads(apiThreads);
+          setSelectedThread(apiThreads[0] ?? null);
+        } else {
+          setThreads(emailThreads);
+          setSelectedThread(emailThreads[0] ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setThreads(emailThreads);
+          setSelectedThread(emailThreads[0] ?? null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const filteredThreads = threads.filter((t) => {
+    if (search && !t.subject.toLowerCase().includes(search.toLowerCase()) && !t.from.toLowerCase().includes(search.toLowerCase()) && !t.to.toLowerCase().includes(search.toLowerCase())) return false;
     if (activeFolder === 'unreplied') return t.messages.length === 1 && t.messages[0].isOutbound;
-    if (activeFolder === 'followup') return t.labels.includes('Needs follow-up');
+    if (activeFolder === 'followup') return t.labels.includes('Needs follow-up') || t.labels.includes('Reply');
     return true;
   });
+
+  const folderCounts = {
+    all: threads.length,
+    unreplied: threads.filter((t) => t.messages.length === 1 && t.messages[0].isOutbound).length,
+    followup: threads.filter((t) => t.labels.includes('Needs follow-up') || t.labels.includes('Reply')).length,
+  };
 
   const handleClassify = (chipId: string) => {
     if (!selectedThread) return;
@@ -103,12 +141,19 @@ export function Inbox() {
           >
             <folder.icon className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left">{folder.label}</span>
-            <span className="text-[11px] text-gray-400">{folder.count}</span>
+            <span className="text-[11px] text-gray-400">{folderCounts[folder.id as keyof typeof folderCounts] ?? 0}</span>
           </button>
         ))}
 
         <div className="mt-6 px-2">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Templates</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Quick actions</p>
+          <button
+            onClick={() => router.push('/accounts')}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Building2 className="h-3 w-3" />Log activity
+          </button>
+          <p className="text-[11px] text-gray-400 mt-3 mb-1">Templates</p>
           {['Cold Intro', 'Follow-up', 'Case Study', 'Meeting Request'].map(tpl => (
             <button key={tpl} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
               <Send className="h-3 w-3" />{tpl}
@@ -131,7 +176,12 @@ export function Inbox() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {filteredThreads.map((thread) => (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+          filteredThreads.map((thread) => (
             <button
               key={thread.id}
               onClick={() => { setSelectedThread(thread); setShowAISummary(true); }}
@@ -165,7 +215,8 @@ export function Inbox() {
               </div>
               {thread.unread && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#2563EB]" />}
             </button>
-          ))}
+          ))
+          )}
         </div>
       </div>
 
@@ -293,12 +344,13 @@ export function Inbox() {
                     </button>
                     <button
                       onClick={() => {
-                        const person = selectedThread?.personId
-                          ? people.find(p => p.id === selectedThread.personId)
-                          : null;
+                        const personId = selectedThread && 'personId' in selectedThread ? selectedThread.personId : undefined;
+                        const person = personId ? people.find((p) => p.id === personId) : null;
                         if (person) {
                           toast.success(`Creating video for ${person.name}`, { description: `${person.title} at ${person.company}` });
                           router.push(`/videos/create?person=${person.id}`);
+                        } else if (personId) {
+                          router.push(`/videos/create?person=${personId}`);
                         } else {
                           toast.success('Opening video creator');
                           router.push('/videos/create');

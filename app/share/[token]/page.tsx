@@ -33,7 +33,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   try {
     const admin = createAdminClient();
     let video: { video_path?: string; storage_video_path?: string; recipient_name?: string; recipient_company?: string; cta_url?: string; cta_label?: string; status?: string } | null = null;
-    const cols = "id, title, video_path, storage_video_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status";
+    const cols = "id, title, video_path, storage_video_path, cover_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status";
     const { data: byPublic, error: e1 } = await admin
       .from("videos")
       .select(cols)
@@ -68,8 +68,14 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
           />
         );
       }
+      if (!videoUrl) {
+        console.error("[share] video found but playback URL empty", { token, storagePath });
+      }
+    } else if (video && !storagePath) {
+      console.error("[share] video found but no video_path", { token });
     }
-  } catch {
+  } catch (err) {
+    console.error("[share] Supabase error", err);
     // Supabase not configured or error — fall through to BDR share
   }
 
