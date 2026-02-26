@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default async function SharePage({ params }: Props) {
-  const { token } = await params;
+  const { token } = await params; // NEXTJS 15: must await params
 
   const { data: video, error } = await supabaseAdmin
     .from('videos')
@@ -28,7 +28,7 @@ export default async function SharePage({ params }: Props) {
 
   const storagePath = video.storage_video_path || video.video_path;
   if (!storagePath) {
-    console.error('[share] video row has no storage_video_path, video id:', video.id);
+    console.error('[share] no storage path for video:', video.id);
     return notFound();
   }
 
