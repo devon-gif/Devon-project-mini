@@ -8,7 +8,8 @@ export async function POST(
   try {
     const { id } = await params;
     const formData  = await req.formData();
-    const coverFile = formData.get('cover') as File | null;
+    // Frontend sends as 'file', fallback to 'cover'
+    const coverFile = (formData.get('file') ?? formData.get('cover')) as File | null;
 
     if (!coverFile) {
       return NextResponse.json({ error: 'cover file required' }, { status: 400 });
@@ -19,19 +20,22 @@ export async function POST(
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from('covers')
-      .upload(coverKey, coverBytes, {
-        contentType: 'image/png',
-        upsert: true,
-      });
+      .upload(coverKey, coverBytes, { contentType: 'image/png', upsert: true });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('[cover] storage upload error:', uploadError);
+      throw uploadError;
+    }
 
     const { error: dbError } = await supabaseAdmin
       .from('videos')
       .update({ cover_path: coverKey })
       .eq('id', id);
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('[cover] db update error:', dbError);
+      throw dbError;
+    }
 
     return NextResponse.json({ ok: true, cover_path: coverKey });
   } catch (err: any) {

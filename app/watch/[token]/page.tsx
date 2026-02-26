@@ -1,31 +1,45 @@
 import { notFound } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase-server';
+import ShareVideoClient from '@/app/share/ShareVideoClient';
 
 const SIGNED_URL_TTL = 60 * 60;
 
 interface Props {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }
 
 export default async function SharePage({ params }: Props) {
-  const { token } = params;
+  const { token } = await params;
 
   const { data: video, error } = await supabaseAdmin
     .from('videos')
-    .select('id, storage_video_path, video_path, cover_path, status, cta_text, cta_url, cta_label')
+    .select('id, storage_video_path, video_path, cover_path, status, cta_text, cta_url, cta_label, recipient_name, recipient_company, share_token, public_token')
     .or(`public_token.eq.${token},share_token.eq.${token}`)
     .maybeSingle();
 
-  if (error || !video) return notFound();
+  if (error) {
+    console.error('[share] db error:', error);
+    return notFound();
+  }
+  if (!video) {
+    console.error('[share] no video found for token:', token);
+    return notFound();
+  }
 
   const storagePath = video.storage_video_path || video.video_path;
-  if (!storagePath) return notFound();
+  if (!storagePath) {
+    console.error('[share] video row has no storage_video_path, video id:', video.id);
+    return notFound();
+  }
 
   const { data: signed, error: signErr } = await supabaseAdmin.storage
     .from('videos')
     .createSignedUrl(storagePath, SIGNED_URL_TTL);
 
-  if (signErr || !signed?.signedUrl) return notFound();
+  if (signErr || !signed?.signedUrl) {
+    console.error('[share] signed URL error:', signErr);
+    return notFound();
+  }
 
   let coverUrl: string | null = null;
   if (video.cover_path) {
@@ -36,18 +50,13 @@ export default async function SharePage({ params }: Props) {
   }
 
   return (
-    <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem' }}>
-      <video
-        src={signed.signedUrl}
-        poster={coverUrl ?? undefined}
-        controls
-        style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '8px' }}
-      />
-      {video.cta_text && video.cta_url && (
-        <a href={video.cta_url} style={{ marginTop: '1.5rem', padding: '0.75rem 1.5rem', background: '#000', color: '#fff', borderRadius: '6px', textDecoration: 'none' }}>
-          {video.cta_label || video.cta_text}
-        </a>
-      )}
-    </main>
+    <ShareVideoClient
+      slug={video.share_token ?? video.public_token ?? token}
+      recipientName={video.recipient_name ?? null}
+      recipientCompany={video.recipient_company ?? null}
+      videoPath={signed.signedUrl}
+      ctaUrl={video.cta_url ?? null}
+      ctaLabel={video.cta_label ?? video.cta_text ?? null}
+    />
   );
 }
