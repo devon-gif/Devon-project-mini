@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const { error: updateErr } = await admin
       .from("videos")
-      .update({ video_path: storagePath })
+      .update({ video_path: storagePath, storage_video_path: storagePath })
       .eq("id", videoId)
       .eq("owner_user_id", data.user.id);
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });

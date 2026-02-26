@@ -1,77 +1,75 @@
-// app/share/[token]/page.tsx
 import { createClient } from "@supabase/supabase-js";
-
-export const runtime = "nodejs";
 
 type Params = { token: string };
 
-function supabaseAnon() {
+function supabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
 export default async function SharePage({ params }: { params: Params }) {
   const token = params.token;
+  const admin = supabaseAdmin();
 
-  const supabase = supabaseAnon();
-
-  const { data: video, error } = await supabase
+  // Fetch by public_token first, then share_token as fallback
+  let { data: video, error } = await admin
     .from("videos")
-    .select("id,title,recipient_name,recipient_company,cta_label,cta_url,storage_video_path,storage_thumb_path,share_token")
-    .eq("share_token", token)
+    .select("id, title, recipient_name, recipient_company, video_path, storage_video_path, cover_path, storage_cover_path, public_token, share_token")
+    .eq("public_token", token)
     .maybeSingle();
+
+  if (!video) {
+    const r = await admin
+      .from("videos")
+      .select("id, title, recipient_name, recipient_company, video_path, storage_video_path, cover_path, storage_cover_path, public_token, share_token")
+      .eq("share_token", token)
+      .maybeSingle();
+    video = r.data ?? null;
+    error = r.error ?? null;
+  }
 
   if (error || !video) {
     return (
-      <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "ui-sans-serif" }}>
         <div style={{ textAlign: "center" }}>
-          <h1 style={{ fontSize: 42, marginBottom: 8 }}>Video not found</h1>
-          <p style={{ opacity: 0.7 }}>This link may be invalid or the video may have been removed.</p>
+          <div style={{ fontSize: 48, fontWeight: 800 }}>Video not found</div>
+          <div style={{ opacity: 0.7, marginTop: 8 }}>This link may be invalid or the video may have been removed.</div>
         </div>
       </div>
     );
   }
 
-  // If you store full public URLs instead of paths, you can use them directly.
-  // If you store storage paths, you’ll generate a signed URL (see section C2).
-  const videoSrc = video.storage_video_path || "";
-  const poster = video.storage_thumb_path || undefined;
+  const videoPath = (video.storage_video_path || video.video_path || "") as string;
+  const coverPath = ((video as any).storage_cover_path || (video as any).cover_path || "") as string;
+
+  const { data: signedVideo } = await admin.storage.from("videos").createSignedUrl(videoPath, 60 * 60);
+  const videoUrl = signedVideo?.signedUrl || "";
+
+  let posterUrl: string | null = null;
+  if (coverPath) {
+    const { data: signedCover } = await admin.storage.from("covers").createSignedUrl(coverPath, 60 * 60);
+    posterUrl = signedCover?.signedUrl ?? null;
+  }
 
   return (
-    <div style={{ maxWidth: 980, margin: "40px auto", padding: 24 }}>
-      <h1 style={{ fontSize: 32, marginBottom: 8 }}>
-        Hey {video.recipient_name ?? "there"} — quick idea for {video.recipient_company ?? ""}
-      </h1>
+    <div style={{ maxWidth: 980, margin: "40px auto", padding: 24, fontFamily: "ui-sans-serif" }}>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 28, fontWeight: 800 }}>
+          Hey {video.recipient_name ?? "there"} — quick idea for {video.recipient_company ?? "your team"}
+        </div>
+        <div style={{ opacity: 0.7, marginTop: 6 }}>{video.title ?? "Personalized video"}</div>
+      </div>
 
-      <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(0,0,0,0.08)" }}>
+      <div style={{ borderRadius: 18, overflow: "hidden", border: "1px solid rgba(0,0,0,0.08)" }}>
         <video
           controls
           playsInline
-          style={{ width: "100%", display: "block", background: "#000" }}
-          src={videoSrc}
-          poster={poster}
+          style={{ width: "100%", height: "auto", display: "block", background: "#000" }}
+          src={videoUrl}
+          poster={posterUrl ?? undefined}
         />
       </div>
-
-      {video.cta_url ? (
-        <div style={{ marginTop: 16 }}>
-          <a
-            href={video.cta_url}
-            style={{
-              display: "inline-flex",
-              padding: "12px 16px",
-              borderRadius: 12,
-              background: "#2563eb",
-              color: "#fff",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-          >
-            {video.cta_label ?? "Book time"}
-          </a>
-        </div>
-      ) : null}
     </div>
   );
 }
