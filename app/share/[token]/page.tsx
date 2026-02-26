@@ -36,25 +36,15 @@ export default async function SharePage({ params }: Props) {
   }
 
   return (
-    <main style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "2rem" }}>
+    <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem' }}>
       <video
         src={signed.signedUrl}
         poster={coverUrl ?? undefined}
         controls
-        style={{ maxWidth: "100%", maxHeight: "80vh", borderRadius: "8px" }}
+        style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '8px' }}
       />
       {video.cta_text && video.cta_url && (
-        
-          href={video.cta_url}
-          style={{
-            marginTop: "1.5rem",
-            padding: "0.75rem 1.5rem",
-            background: "#000",
-            color: "#fff",
-            borderRadius: "6px",
-            textDecoration: "none",
-          }}
-        >
+        <a href={video.cta_url} style={{ marginTop: '1.5rem', padding: '0.75rem 1.5rem', background: '#000', color: '#fff', borderRadius: '6px', textDecoration: 'none' }}>
           {video.cta_label || video.cta_text}
         </a>
       )}
