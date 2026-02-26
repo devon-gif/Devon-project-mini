@@ -28,6 +28,9 @@ create table if not exists public.videos (
   storage_gif_path text null,
   storage_thumb_path text null,
 
+  -- Optional PNG/JPG cover for email + landing page
+  cover_path text null,
+
   -- Public share token for landing page (app uses public_token)
   public_token text unique null,
   share_token text unique null,
