@@ -1,190 +1,77 @@
-import crypto from "crypto";
-import { notFound } from "next/navigation";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getVideoPlaybackUrl } from "@/lib/supabase-storage";
-import { getVideoBySlug } from "@/lib/db";
-import ShareVideoClient from "../ShareVideoClient";
+// app/share/[token]/page.tsx
+import { createClient } from "@supabase/supabase-js";
 
-export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+type Params = { token: string };
 
-  // 1) Local (USE_LOCAL_VIDEOS): SQLite + public/uploads — path is same-origin e.g. /uploads/videos/xxx.mp4
-  try {
-    const video = getVideoBySlug(token);
-    if (video && video.video_path) {
-      return (
-        <ShareVideoClient
-          slug={video.slug}
-          recipientName={video.recipient_name}
-          recipientCompany={video.recipient_company}
-          videoPath={video.video_path}
-          ctaUrl={video.cta_url}
-          ctaLabel={video.cta_label}
-        />
-      );
-    }
-  } catch {
-    // SQLite not available or error — fall through
-  }
+function supabaseAnon() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
 
-  // 2) Supabase Storage: resolve by public_token (or share_token fallback), serve signed or public URL
-  try {
-    const admin = createAdminClient();
-    let video: { video_path?: string; storage_video_path?: string; recipient_name?: string; recipient_company?: string; cta_url?: string; cta_label?: string; status?: string } | null = null;
-    const cols = "id, title, video_path, storage_video_path, cover_path, gif_path, recipient_name, recipient_company, cta_url, cta_label, status";
-    const { data: byPublic, error: e1 } = await admin
-      .from("videos")
-      .select(cols)
-      .eq("public_token", token)
-      .maybeSingle();
-    if (!e1 && byPublic) video = byPublic;
-    if (!video) {
-      try {
-        const { data: byShare, error: e2 } = await admin
-          .from("videos")
-          .select(cols)
-          .eq("share_token", token)
-          .maybeSingle();
-        if (!e2 && byShare) video = byShare;
-      } catch {
-        // share_token column may not exist
-      }
-    }
-    const storagePath = (video?.video_path || video?.storage_video_path || "").trim();
-    const status = video?.status ?? "";
-    if (video && storagePath && status !== "processing") {
-      const videoUrl = await getVideoPlaybackUrl(admin, storagePath);
-      if (videoUrl) {
-        return (
-          <ShareVideoClient
-            slug={token}
-            recipientName={video.recipient_name ?? null}
-            recipientCompany={video.recipient_company ?? null}
-            videoPath={videoUrl}
-            ctaUrl={video.cta_url ?? null}
-            ctaLabel={video.cta_label ?? null}
-          />
-        );
-      }
-      if (!videoUrl) {
-        console.error("[share] video found but playback URL empty", { token, storagePath });
-      }
-    } else if (video && !storagePath) {
-      console.error("[share] video found but no video_path", { token });
-    }
-  } catch (err) {
-    console.error("[share] Supabase error", err);
-    // Supabase not configured or error — fall through to BDR share
-  }
+export default async function SharePage({ params }: { params: Params }) {
+  const token = params.token;
 
-  // 3) BDR share link (shares table by token hash)
-  let admin;
-  try {
-    admin = createAdminClient();
-  } catch {
+  const supabase = supabaseAnon();
+
+  const { data: video, error } = await supabase
+    .from("videos")
+    .select("id,title,recipient_name,recipient_company,cta_label,cta_url,storage_video_path,storage_thumb_path,share_token")
+    .eq("share_token", token)
+    .maybeSingle();
+
+  if (error || !video) {
     return (
-      <div style={{ maxWidth: 560, margin: "80px auto", padding: 24, textAlign: "center" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Video not found</h1>
-        <p style={{ opacity: 0.8 }}>This link may be invalid or the video may have been removed.</p>
+      <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: 42, marginBottom: 8 }}>Video not found</h1>
+          <p style={{ opacity: 0.7 }}>This link may be invalid or the video may have been removed.</p>
+        </div>
       </div>
     );
   }
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  const { data: share } = await admin.from("shares").select("*").eq("token_hash", tokenHash).maybeSingle();
 
-  if (!share) {
-    return (
-      <div style={{ maxWidth: 560, margin: "80px auto", padding: 24, textAlign: "center" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Video not found</h1>
-        <p style={{ opacity: 0.8 }}>This link may be invalid or the video may have been removed.</p>
-      </div>
-    );
-  }
-  if (share.expires_at && new Date(share.expires_at) < new Date()) return notFound();
-
-  const { data: accounts } = await admin
-    .from("accounts")
-    .select("id,name,domain,tier,status,score,created_at")
-    .order("score", { ascending: false })
-    .limit(25);
-
-  const { data: events } = await admin
-    .from("activity_events")
-    .select("id,account_id,type,channel,summary,created_at, accounts(name)")
-    .order("created_at", { ascending: false })
-    .limit(15);
-
-  const touches = (events ?? []).filter((e) => e.type === "touch_sent").length;
-  const replies = (events ?? []).filter((e) => e.type === "reply").length;
-  const meetings = (events ?? []).filter((e) => e.type === "meeting_booked").length;
+  // If you store full public URLs instead of paths, you can use them directly.
+  // If you store storage paths, you’ll generate a signed URL (see section C2).
+  const videoSrc = video.storage_video_path || "";
+  const poster = video.storage_thumb_path || undefined;
 
   return (
-    <div style={{ maxWidth: 1100, margin: "40px auto", padding: 24 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900 }}>BDR Proof of Work</h1>
-      <p style={{ opacity: 0.7, marginTop: 6 }}>Read-only share link • Live activity + accounts snapshot</p>
+    <div style={{ maxWidth: 980, margin: "40px auto", padding: 24 }}>
+      <h1 style={{ fontSize: 32, marginBottom: 8 }}>
+        Hey {video.recipient_name ?? "there"} — quick idea for {video.recipient_company ?? ""}
+      </h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 20 }}>
-        {[
-          ["Accounts (shown)", String(accounts?.length ?? 0)],
-          ["Touches (recent)", String(touches)],
-          ["Replies (recent)", String(replies)],
-          ["Meetings (recent)", String(meetings)],
-        ].map(([label, value]) => (
-          <div key={label} style={{ border: "1px solid #333", borderRadius: 12, padding: 14 }}>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{value}</div>
-          </div>
-        ))}
+      <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(0,0,0,0.08)" }}>
+        <video
+          controls
+          playsInline
+          style={{ width: "100%", display: "block", background: "#000" }}
+          src={videoSrc}
+          poster={poster}
+        />
       </div>
 
-      <div style={{ marginTop: 18, border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ padding: 14, fontWeight: 900 }}>Recent Activity</div>
-        <div style={{ borderTop: "1px solid #333" }}>
-          {(events ?? []).map((e) => (
-            <div key={e.id} style={{ padding: 12, borderBottom: "1px solid #222" }}>
-              <div style={{ fontWeight: 800 }}>
-                {(Array.isArray(e.accounts) ? e.accounts[0]?.name : (e.accounts as { name?: string } | null)?.name) ?? "Account"} — {e.type}
-                {e.channel ? ` (${e.channel})` : ""}
-              </div>
-              <div style={{ opacity: 0.8, marginTop: 4 }}>{e.summary ?? "—"}</div>
-              <div style={{ opacity: 0.6, fontSize: 12, marginTop: 4 }}>
-                {new Date(e.created_at).toLocaleString()}
-              </div>
-            </div>
-          ))}
-          {(!events || events.length === 0) && <div style={{ padding: 12, opacity: 0.7 }}>No activity yet.</div>}
+      {video.cta_url ? (
+        <div style={{ marginTop: 16 }}>
+          <a
+            href={video.cta_url}
+            style={{
+              display: "inline-flex",
+              padding: "12px 16px",
+              borderRadius: 12,
+              background: "#2563eb",
+              color: "#fff",
+              textDecoration: "none",
+              fontWeight: 600,
+            }}
+          >
+            {video.cta_label ?? "Book time"}
+          </a>
         </div>
-      </div>
-
-      <div style={{ marginTop: 18, border: "1px solid #333", borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ padding: 14, fontWeight: 900 }}>Top Accounts (by score)</div>
-        <div style={{ overflowX: "auto", borderTop: "1px solid #333" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ textAlign: "left" }}>
-                {["Company", "Domain", "Tier", "Status", "Score"].map((h) => (
-                  <th key={h} style={{ padding: 12, fontSize: 12, opacity: 0.75, borderBottom: "1px solid #333" }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {(accounts ?? []).map((a) => (
-                <tr key={a.id} style={{ borderBottom: "1px solid #222" }}>
-                  <td style={{ padding: 12, fontWeight: 700 }}>{a.name}</td>
-                  <td style={{ padding: 12, opacity: 0.85 }}>{a.domain ?? "—"}</td>
-                  <td style={{ padding: 12 }}>{a.tier}</td>
-                  <td style={{ padding: 12 }}>{a.status}</td>
-                  <td style={{ padding: 12, fontWeight: 800 }}>{a.score ?? 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }
