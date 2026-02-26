@@ -1,45 +1,63 @@
-import { notFound } from "next/navigation";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { VideoWatchClient } from "./VideoWatchClient";
+import { notFound } from 'next/navigation';
+import { supabaseAdmin } from '@/lib/supabase-server';
 
-export default async function WatchPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
-  const { token } = await params;
-  const admin = createAdminClient();
-  const { data: video, error } = await admin
-    .from("videos")
-    .select("id, title, video_path, cover_path, gif_path, status, recipient_name, recipient_company, cta_type, cta_url, public_token")
-    .eq("public_token", token)
-    .single();
+const SIGNED_URL_TTL = 60 * 60;
+
+interface Props {
+  params: { token: string };
+}
+
+export default async function SharePage({ params }: Props) {
+  const { token } = params;
+
+  const { data: video, error } = await supabaseAdmin
+    .from('videos')
+    .select('id, storage_video_path, video_path, cover_path, status, cta_text, cta_url, cta_label')
+    .or(`public_token.eq.${token},share_token.eq.${token}`)
+    .maybeSingle();
+
   if (error || !video) return notFound();
-  if (video.status === "draft" || video.status === "processing") return notFound();
 
-  const { data: urlData } = admin.storage.from("videos").getPublicUrl(video.video_path || "");
-  const videoUrl = urlData?.publicUrl ?? "";
-  let posterUrl: string | null = null;
-  const coverPath = (video.cover_path as string)?.trim();
-  const gifPath = (video.gif_path as string)?.trim();
-  if (coverPath) {
-    const c = admin.storage.from("covers").getPublicUrl(coverPath);
-    posterUrl = c.data?.publicUrl ?? null;
-  } else if (gifPath) {
-    const g = admin.storage.from("gifs").getPublicUrl(gifPath);
-    posterUrl = g.data?.publicUrl ?? null;
+  const storagePath = video.storage_video_path || video.video_path;
+  if (!storagePath) return notFound();
+
+  const { data: signed, error: signErr } = await supabaseAdmin.storage
+    .from('videos')
+    .createSignedUrl(storagePath, SIGNED_URL_TTL);
+
+  if (signErr || !signed?.signedUrl) return notFound();
+
+  let coverUrl: string | null = null;
+  if (video.cover_path) {
+    const { data: cover } = await supabaseAdmin.storage
+      .from('covers')
+      .createSignedUrl(video.cover_path, SIGNED_URL_TTL);
+    coverUrl = cover?.signedUrl ?? null;
   }
 
   return (
-    <VideoWatchClient
-      token={token}
-      title={video.title ?? "Video"}
-      recipientName={video.recipient_name ?? ""}
-      recipientCompany={video.recipient_company ?? ""}
-      videoUrl={videoUrl}
-      gifUrl={posterUrl}
-      ctaType={(video.cta_type as "book" | "forward") ?? "book"}
-      ctaUrl={video.cta_url ?? ""}
-    />
+    <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem' }}>
+      <video
+        src={signed.signedUrl}
+        poster={coverUrl ?? undefined}
+        controls
+        style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '8px' }}
+      />
+      {video.cta_text && video.cta_url && (
+        
+          href={video.cta_url}
+          style={{
+            marginTop: '1.5rem',
+            padding: '0.75rem 1.5rem',
+            background: '#000',
+            color: '#fff',
+            borderRadius: '6px',
+            textDecoration: 'none',
+          }}
+        >
+          {video.cta_label || video.cta_text}
+        </a>
+      )}
+    </main>
   );
 }
