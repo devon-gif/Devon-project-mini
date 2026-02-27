@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { resolveVideoId, insertForward, insertEvent } from "@/lib/db";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-/**
- * POST /api/public/forward — capture "Forward to the right person" from share page.
- * No auth. Payload: { slug, recipient_name, recipient_email, note?, viewer_id? }
- */
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -15,37 +11,21 @@ export async function POST(request: Request) {
     const viewer_id = (body.viewer_id as string) || null;
 
     if (!slug || !recipient_name || !recipient_email) {
-      return NextResponse.json(
-        { error: "slug, recipient_name, and recipient_email are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "slug, recipient_name, and recipient_email are required" }, { status: 400 });
     }
 
-    const videoId = resolveVideoId(slug);
-    if (!videoId) {
-      return NextResponse.json({ error: "Video not found" }, { status: 404 });
-    }
+    const admin = createAdminClient();
+    const { data: video } = await admin.from("videos").select("id")
+      .or(`public_token.eq.${slug},share_token.eq.${slug}`).maybeSingle();
+    if (!video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
 
-    insertForward({
-      video_id: videoId,
-      recipient_name,
-      recipient_email,
-      note,
-      viewer_session_id: viewer_id,
+    await admin.from("shares").insert({ video_id: video.id, recipient_name, recipient_email, note });
+    await admin.from("video_events").insert({
+      video_id: video.id, session_id: viewer_id ?? "", event_type: "forward_submitted",
+      meta: { recipient_name, recipient_email, note },
     });
-    insertEvent(videoId, "forward_submitted", {
-      recipient_name,
-      recipient_email,
-      note,
-      viewer_id: viewer_id || undefined,
-    });
-
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("POST /api/public/forward", e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
   }
 }
