@@ -2,6 +2,10 @@ import { notFound } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase-server';
 import ShareVideoClient from '@/app/share/ShareVideoClient';
 
+// FORCE DYNAMIC: prevents Next.js from statically rendering this page at build time
+// Without this, Next.js runs the page with no token at build time, gets notFound(), and caches a static 404
+export const dynamic = 'force-dynamic';
+
 const SIGNED_URL_TTL = 60 * 60;
 
 interface Props {
@@ -9,7 +13,7 @@ interface Props {
 }
 
 export default async function SharePage({ params }: Props) {
-  const { token } = await params; // NEXTJS 15: must await params
+  const { token } = await params;
 
   const { data: video, error } = await supabaseAdmin
     .from('videos')
