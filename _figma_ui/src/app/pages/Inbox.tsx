@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
+import type { EmailThread } from '../data/mockData';
 import { emailThreads, people } from '../data/mockData';
 import {
   Inbox as InboxIcon, MailWarning, Clock, Search,
@@ -35,7 +36,7 @@ const classificationChips = [
   { id: 'unsubscribe', label: 'Unsubscribe', icon: XCircle, color: 'bg-gray-100 text-gray-600 border-gray-200' },
 ];
 
-export function Inbox() {
+export function Inbox({ threads: propThreads, loading: propLoading }: { threads?: EmailThread[]; loading?: boolean } = {}) {
   const navigate = useNavigate();
   const [activeFolder, setActiveFolder] = useState('all');
   const [selectedThread, setSelectedThread] = useState<EmailThread | null>(emailThreads[0]);
@@ -44,7 +45,8 @@ export function Inbox() {
   const [showAISummary, setShowAISummary] = useState(true);
   const [threadClassifications, setThreadClassifications] = useState<Record<string, string>>({});
 
-  const filteredThreads = emailThreads.filter(t => {
+  const allThreads = propThreads && propThreads.length > 0 ? propThreads : emailThreads;
+  const filteredThreads = allThreads.filter(t => {
     if (search && !t.subject.toLowerCase().includes(search.toLowerCase()) && !t.from.toLowerCase().includes(search.toLowerCase())) return false;
     if (activeFolder === 'unreplied') return t.messages.length === 1 && t.messages[0].isOutbound;
     if (activeFolder === 'followup') return t.labels.includes('Needs follow-up');
