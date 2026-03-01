@@ -6,7 +6,7 @@ import { accounts } from '../data/mockData';
 import type { Account } from '../data/mockData';
 import {
   Search, Filter, Plus, MoreHorizontal, ChevronDown,
-  Mail, Linkedin, Phone, CheckSquare,
+  Mail, Linkedin, Phone, CheckSquare, Users, Target
 } from 'lucide-react';
 
 const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'purple' | 'default'> = {
@@ -17,12 +17,12 @@ const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'purple' | 
   'Closed Lost': 'default',
 };
 
-// Map account statuses to BDR-friendly labels
+// Map account statuses to Twill-friendly labels
 const bdrStatusMap: Record<string, string> = {
   'Active': 'Engaged',
   'Prospecting': 'Prospecting',
   'Nurturing': 'Nurture',
-  'Closed Won': 'Meeting Set',
+  'Closed Won': 'Partnering',
   'Closed Lost': 'Closed',
 };
 
@@ -51,12 +51,12 @@ export function Accounts() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-gray-900">Leads</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{accounts.length} leads tracked</p>
+            <h1 className="text-gray-900">Hiring Partners</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{accounts.length} partners tracked</p>
           </div>
           <button className="flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm text-white hover:bg-[#1D4ED8] transition-all">
             <Plus className="h-4 w-4" />
-            Add Lead
+            Add Partner
           </button>
         </div>
 
@@ -68,7 +68,7 @@ export function Accounts() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search leads..."
+                placeholder="Search partners..."
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]/20 transition-colors"
               />
             </div>
@@ -104,9 +104,9 @@ export function Accounts() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  {['Company', 'Tier', 'Status', 'Last Touch', 'Next Action', 'Signal', ''].map((h) => (
+                  {['Company', 'Tier', 'Status', 'Open Roles', 'Network Overlap', 'Next Action', 'Signal', ''].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] text-gray-400 uppercase tracking-wider">
-                      <button className="flex items-center gap-1 hover:text-gray-600 transition-colors">
+                      <button className="flex items-center gap-1 hover:text-gray-600 transition-colors whitespace-nowrap">
                         {h}{h && <ChevronDown className="h-3 w-3" />}
                       </button>
                     </th>
@@ -128,7 +128,7 @@ export function Accounts() {
                           {account.company.slice(0, 2)}
                         </div>
                         <div>
-                          <p className="text-sm text-gray-800">{account.company}</p>
+                          <p className="text-sm text-gray-800 whitespace-nowrap">{account.company}</p>
                           <p className="text-[11px] text-gray-400">{account.domain}</p>
                         </div>
                       </div>
@@ -137,8 +137,21 @@ export function Accounts() {
                     <td className="px-4 py-3">
                       <StatusChip label={bdrStatusMap[account.status] || account.status} variant={statusVariant[account.status] || 'default'} />
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{account.lastTouch}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">{account.nextStep}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <Target className="h-3.5 w-3.5 text-purple-400" />
+                        <span style={{ fontWeight: 500 }}>{account.openTargetRoles}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Users className={`h-3.5 w-3.5 ${account.networkOverlap > 5 ? 'text-emerald-500' : 'text-gray-400'}`} />
+                        <span className={account.networkOverlap > 5 ? 'text-emerald-600 font-medium' : 'text-gray-500'}>
+                          {account.networkOverlap} members
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[180px] truncate">{account.nextStep}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <div className="h-1.5 w-12 rounded-full bg-gray-100 overflow-hidden">

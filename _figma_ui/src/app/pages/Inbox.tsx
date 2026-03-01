@@ -11,7 +11,6 @@ import {
   ThumbsUp, Timer, UserX, CornerUpRight, XCircle,
   CheckSquare, Video,
 } from 'lucide-react';
-import type { EmailThread } from '../data/mockData';
 import { toast } from 'sonner';
 
 const folders = [
@@ -109,7 +108,7 @@ export function Inbox({ threads: propThreads, loading: propLoading }: { threads?
 
         <div className="mt-6 px-2">
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Templates</p>
-          {['Cold Intro', 'Follow-up', 'Case Study', 'Meeting Request'].map(tpl => (
+          {['Network Match', 'Profile Drop', 'Case Study', 'Exec Summary'].map(tpl => (
             <button key={tpl} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
               <Send className="h-3 w-3" />{tpl}
             </button>
