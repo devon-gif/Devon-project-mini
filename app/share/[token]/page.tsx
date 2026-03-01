@@ -1,56 +1,30 @@
-import { notFound } from 'next/navigation';
-import { supabaseAdmin } from '@/lib/supabase-server';
-
 export const dynamic = 'force-dynamic';
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  return <ShareClient token={token} />;
+}
 
-  const { data: video } = await supabaseAdmin
-    .from('videos')
-    .select('storage_video_path, video_path, cover_path, cta_url, cta_label, cta_text, recipient_name, recipient_company')
-    .or(`public_token.eq.${token},share_token.eq.${token}`)
-    .maybeSingle();
-
-  if (!video) return notFound();
-
-  const storagePath = video.storage_video_path || video.video_path;
-  if (!storagePath) return notFound();
-
-  const { data: signed } = await supabaseAdmin.storage.from('videos').createSignedUrl(storagePath, 3600);
-  if (!signed?.signedUrl) return notFound();
-
-  let coverUrl = '';
-  if (video.cover_path) {
-    const { data: c } = await supabaseAdmin.storage.from('covers').createSignedUrl(video.cover_path, 3600);
-    coverUrl = c?.signedUrl ?? '';
-  }
-
-  const recipient = video.recipient_name?.trim() || 'there';
-  const company = video.recipient_company?.trim() || 'your company';
-  const ctaUrl = video.cta_url || '';
-  const ctaLabel = video.cta_label || video.cta_text || 'Book a call';
-
+function ShareClient({ token }: { token: string }) {
   return (
-    <div style={{ minHeight: '100vh', background: '#0e0e0e', color: '#fff', fontFamily: 'system-ui, sans-serif', padding: '40px 24px' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>
-          Hey {recipient} — quick idea for {company}
-        </h1>
-        <p style={{ opacity: 0.7, marginBottom: 24 }}>Watch the short video below.</p>
-        <video
-          src={signed.signedUrl}
-          poster={coverUrl || undefined}
-          controls
-          playsInline
-          style={{ width: '100%', borderRadius: 12, display: 'block', marginBottom: 24 }}
-        />
-        {ctaUrl && (
-          <a href={ctaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '14px 28px', background: '#FFD600', color: '#000', borderRadius: 8, fontWeight: 700, textDecoration: 'none', fontSize: 16 }}>
-            {ctaLabel}
-          </a>
-        )}
-      </div>
-    </div>
+    <html>
+      <body style={{ margin: 0, background: '#0e0e0e', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (async function() {
+            const res = await fetch('/api/debug-share?token=${encodeURIComponent(token)}');
+            const d = await res.json();
+            if (d.step !== 'ok') { document.body.innerHTML = '<div style="padding:40px;color:red">Video not found (${encodeURIComponent(token)})</div>'; return; }
+            document.body.innerHTML = \`
+              <div style="max-width:900px;margin:40px auto;padding:24px">
+                <video src="\${d.signedUrl}" controls playsinline style="width:100%;border-radius:12px;display:block"></video>
+              </div>
+            \`;
+          })();
+        ` }} />
+        <div style={{ maxWidth: 900, margin: '40px auto', padding: 24 }}>
+          <p style={{ opacity: 0.5 }}>Loading video...</p>
+        </div>
+      </body>
+    </html>
   );
 }
