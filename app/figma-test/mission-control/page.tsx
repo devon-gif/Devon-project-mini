@@ -125,7 +125,7 @@ function timeAgo(date: Date): string {
 }
 
 // ─── Component ────────────────────────────────────────────
-export function MissionControl() {
+export default function MissionControl() {
   const router = useRouter();
   const [dismissedActions, setDismissedActions] = useState<Set<string>>(new Set());
   const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());
