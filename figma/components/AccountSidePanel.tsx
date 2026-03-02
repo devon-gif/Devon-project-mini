@@ -8,7 +8,7 @@ import { PersonAvatar } from './PersonAvatar';
 import { CompanyLogo } from './CompanyLogo';
 import { people, emailThreads, tasks } from '../data/mockData';
 import type { Account } from '../data/mockData';
-import type { SidePanelPerson } from '../pages/Accounts';
+type SidePanelPerson = any;
 
 interface AccountSidePanelProps {
   account: Account | null;
