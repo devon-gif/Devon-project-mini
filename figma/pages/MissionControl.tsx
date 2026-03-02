@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,7 +17,6 @@ import {
   Target, CheckCircle2, RotateCcw, Trash2,
 } from 'lucide-react';
 import { ShareModal } from '../components/ShareModal';
-import { CompanyLogo } from '../components/CompanyLogo';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────
@@ -311,17 +309,17 @@ export function MissionControl() {
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="h-full overflow-y-auto p-6 space-y-6">
-        {/* Header — Figma: large greeting, subtitle, Share read-only */}
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">{getTimeGreeting()}, Alex</h1>
+            <h1 className="text-gray-900">{getTimeGreeting()}, Alex</h1>
             <p className="text-sm text-gray-500 mt-1">
               {visibleActions.length} actions waiting &middot; {tasks.filter(t => t.status !== 'done').length} open tasks
             </p>
           </div>
           <button
             onClick={() => setShareOpen(true)}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
           >
             <Share2 className="h-4 w-4" />
             Share read-only
@@ -389,8 +387,8 @@ export function MissionControl() {
                 <Target className="h-4 w-4 text-gray-900" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">Do Next</h3>
-                <p className="text-xs text-gray-400">{visibleActions.length} prioritized actions &middot; drag to reorder</p>
+                <h3 className="text-gray-800">Do Next</h3>
+                <p className="text-[11px] text-gray-400">{visibleActions.length} prioritized actions &middot; drag to reorder</p>
               </div>
             </div>
           </div>
@@ -548,7 +546,9 @@ export function MissionControl() {
                     onClick={() => router.push('/accounts')}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <CompanyLogo domain={account.domain} company={account.company} size={32} />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] text-blue-600" style={{ fontWeight: 500 }}>
+                        {account.company.slice(0, 2)}
+                      </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-gray-800">{account.company}</span>
