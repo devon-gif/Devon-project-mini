@@ -9,7 +9,6 @@ import { CompanyLogo } from './CompanyLogo';
 import { people, emailThreads, tasks } from '../data/mockData';
 import type { Account } from '../data/mockData';
 type SidePanelPerson = any;
-
 interface AccountSidePanelProps {
   account: Account | null;
   onClose: () => void;
