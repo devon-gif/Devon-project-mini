@@ -78,7 +78,7 @@ export default function Page() {
         </div>
       )}
       <div className="flex-1 overflow-hidden">
-        <Inbox threads={threads} loading={loading} />
+        <Inbox  />
       </div>
     </div>
   );
