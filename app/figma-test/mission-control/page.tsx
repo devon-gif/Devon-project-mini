@@ -1,13 +1,14 @@
+"use client";
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from "framer-motion";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { GlassCard } from '../components/GlassCard';
-import { StatusChip } from '../components/StatusChip';
-import { AnimatedCounter } from '../components/AnimatedCounter';
-import { DraggableActionItem } from '../components/DraggableActionItem';
-import { accounts, people, emailThreads, tasks } from '../data/mockData';
+import { GlassCard } from '@/figma/components/GlassCard';
+import { StatusChip } from '@/figma/components/StatusChip';
+import { AnimatedCounter } from '@/figma/components/AnimatedCounter';
+import { DraggableActionItem } from '@/figma/components/DraggableActionItem';
+import { accounts, people, emailThreads, tasks } from '@/data/mockData';
 import {
   Building2, MessageSquare, Calendar, Users, Mail,
   ArrowUpRight, ArrowDownRight, Flame, ChevronRight, ChevronDown,
@@ -15,7 +16,7 @@ import {
   Sparkles, Send, Share2, Lightbulb,
   Target, CheckCircle2, RotateCcw, Trash2,
 } from 'lucide-react';
-import { ShareModal } from '../components/ShareModal';
+import { ShareModal } from '@/figma/components/ShareModal';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────
