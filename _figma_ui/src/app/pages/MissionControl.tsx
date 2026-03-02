@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from "framer-motion";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -125,7 +125,7 @@ function timeAgo(date: Date): string {
 
 // ─── Component ────────────────────────────────────────────
 export function MissionControl() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [dismissedActions, setDismissedActions] = useState<Set<string>>(new Set());
   const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());
   const [recentlyCompleted, setRecentlyCompleted] = useState<CompletedItem[]>([]);
@@ -215,10 +215,10 @@ export function MissionControl() {
           description: `${action.action} — ${action.account}`,
           action: person ? {
             label: 'Open Inbox',
-            onClick: () => navigate('/inbox'),
+            onClick: () => router.push('/inbox'),
           } : undefined,
         });
-        navigate('/inbox');
+        router.push('/inbox');
         break;
       }
       case 'call': {
@@ -228,17 +228,17 @@ export function MissionControl() {
           description: `${action.action} — ${action.account}`,
           action: {
             label: 'Log in Tasks',
-            onClick: () => navigate('/tasks'),
+            onClick: () => router.push('/tasks'),
           },
         });
-        navigate('/tasks');
+        router.push('/tasks');
         break;
       }
       case 'video': {
         toast.success(`Creating video for ${action.contact}`, {
           description: `${action.action} — ${action.account}`,
         });
-        navigate(action.personId ? `/videos/create?person=${action.personId}` : '/videos/create');
+        router.push(action.personId ? `/videos/create?person=${action.personId}` : '/videos/create');
         break;
       }
       case 'intro': {
@@ -246,10 +246,10 @@ export function MissionControl() {
           description: `${action.reason}`,
           action: {
             label: 'Open Inbox',
-            onClick: () => navigate('/inbox'),
+            onClick: () => router.push('/inbox'),
           },
         });
-        navigate('/inbox');
+        router.push('/inbox');
         break;
       }
       default: {
@@ -531,7 +531,7 @@ export function MissionControl() {
                 <Flame className="h-4 w-4 text-[#FFD600]" />
                 <h3 className="text-gray-800">Hot Accounts</h3>
               </div>
-              <button onClick={() => navigate('/accounts')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
+              <button onClick={() => router.push('/accounts')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
                 View all <ChevronRight className="h-3 w-3" />
               </button>
             </div>
@@ -542,7 +542,7 @@ export function MissionControl() {
                   <div
                     key={account.id}
                     className="group flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => navigate('/accounts')}
+                    onClick={() => router.push('/accounts')}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] text-blue-600" style={{ fontWeight: 500 }}>
@@ -564,7 +564,7 @@ export function MissionControl() {
                       </div>
                       {/* Quick actions on hover */}
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                        <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={e => { e.stopPropagation(); toast.success(`Composing email to ${account.company}`, { description: 'Opening inbox...' }); navigate('/inbox'); }}>
+                        <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={e => { e.stopPropagation(); toast.success(`Composing email to ${account.company}`, { description: 'Opening inbox...' }); router.push('/inbox'); }}>
                           <Mail className="h-3 w-3" />
                         </button>
                         <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600" onClick={e => { e.stopPropagation(); const person = accountPeople[0]; toast.success(`Opening LinkedIn for ${person?.name || account.company}`, { description: person?.linkedin || account.domain }); }}>
@@ -588,7 +588,7 @@ export function MissionControl() {
                 <Mail className="h-4 w-4 text-[#2563EB]" />
                 <h3 className="text-gray-800">Inbox Highlights</h3>
               </div>
-              <button onClick={() => navigate('/inbox')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
+              <button onClick={() => router.push('/inbox')} className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors flex items-center gap-0.5">
                 Open Inbox <ChevronRight className="h-3 w-3" />
               </button>
             </div>
@@ -600,7 +600,7 @@ export function MissionControl() {
                   <div
                     key={thread.id}
                     className="group flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-3 hover:bg-white hover:border-gray-200 transition-all cursor-pointer"
-                    onClick={() => navigate('/inbox')}
+                    onClick={() => router.push('/inbox')}
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[10px] text-blue-600 mt-0.5" style={{ fontWeight: 500 }}>
                       {(thread.from === 'You' ? thread.to : thread.from).split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -614,10 +614,10 @@ export function MissionControl() {
                       <div className="flex items-center gap-2 mt-1.5">
                         {chipLabel && <StatusChip label={chipLabel} variant={chipVariant as 'accent' | 'purple' | 'warning'} />}
                         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-100" onClick={e => { e.stopPropagation(); toast.success(`AI drafting reply to ${thread.from === 'You' ? thread.to : thread.from}`, { description: thread.subject }); navigate('/inbox'); }}>
+                          <button className="flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-100" onClick={e => { e.stopPropagation(); toast.success(`AI drafting reply to ${thread.from === 'You' ? thread.to : thread.from}`, { description: thread.subject }); router.push('/inbox'); }}>
                             <Sparkles className="h-2.5 w-2.5" />Reply
                           </button>
-                          <button className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 hover:bg-gray-200" onClick={e => { e.stopPropagation(); toast.success(`Task created for ${thread.from === 'You' ? thread.to : thread.from}`, { description: `Follow up on: ${thread.subject}` }); navigate('/tasks'); }}>
+                          <button className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 hover:bg-gray-200" onClick={e => { e.stopPropagation(); toast.success(`Task created for ${thread.from === 'You' ? thread.to : thread.from}`, { description: `Follow up on: ${thread.subject}` }); router.push('/tasks'); }}>
                             <CheckSquare className="h-2.5 w-2.5" />Task
                           </button>
                         </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useRouter } from 'next/navigation';
 import { GlassCard } from '../components/GlassCard';
 import { StatusChip } from '../components/StatusChip';
 import type { EmailThread } from '../data/mockData';
@@ -36,7 +36,7 @@ const classificationChips = [
 ];
 
 export function Inbox({ threads: propThreads, loading: propLoading }: { threads?: EmailThread[]; loading?: boolean } = {}) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeFolder, setActiveFolder] = useState('all');
   const [selectedThread, setSelectedThread] = useState<EmailThread | null>(emailThreads[0]);
   const [replyText, setReplyText] = useState('');
@@ -297,10 +297,10 @@ export function Inbox({ threads: propThreads, loading: propLoading }: { threads?
                           : null;
                         if (person) {
                           toast.success(`Creating video for ${person.name}`, { description: `${person.title} at ${person.company}` });
-                          navigate(`/videos/create?person=${person.id}`);
+                          router.push(`/videos/create?person=${person.id}`);
                         } else {
                           toast.success('Opening video creator');
-                          navigate('/videos/create');
+                          router.push('/videos/create');
                         }
                       }}
                       className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-100 transition-colors"
