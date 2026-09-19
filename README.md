@@ -1,285 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personalized Video Outreach CRM
+
+### A product prototype for turning targeted outreach into a trackable video workflow
+
+This project explores a simple question: **what would outbound prospecting look like if personalized video, lightweight CRM workflow and engagement analytics lived in one product?**
+
+I designed and built the prototype as a functional system rather than a static dashboard concept.
+
+**Focus:** product UX · workflow design · video · CRM · analytics · Next.js / Supabase
+
+[View my portfolio](https://www.archerdesign.shop/devon)
 
 ---
 
-## Demo script (exact clicks for Michelle)
+## Product flow
 
-1. **Start**
-   - `npm install` → `npm run dev`
-   - Add `.env.local`: `DEMO_MODE=true`, `NEXT_PUBLIC_DEMO_MODE=true`, `USE_LOCAL_VIDEOS=true`
-   - Place **Twill #100.csv** at project root, then: `curl -X POST http://localhost:3000/api/prospects/seed` (or run `npm run seed:demo` for demo people + videos)
-   - Open [http://localhost:3000](http://localhost:3000)
+The prototype supports an end-to-end outreach workflow:
 
-2. **Login**
-   - Any email + password → Sign In → lands on Mission Control
+1. Import / seed prospect data
+2. Search companies and contacts
+3. Select a recipient
+4. Upload a personalized video
+5. Generate a public share experience
+6. Copy an outreach link or open a prefilled email
+7. Mark outreach as sent
+8. Track viewing and CTA activity
+9. Review engagement in the CRM
 
-3. **Accounts (real CSV prospects)**
-   - Sidebar → **Accounts**
-   - Table shows company, person, title; search by company/person/title/email
-   - Click a row → side panel opens; click **Email** (mailto), **LinkedIn** (new tab), **Website** (new tab)
+The public share page requires no recipient account and records meaningful interaction events back to the product.
 
-4. **Video flow end-to-end**
-   - Sidebar → **Videos** → **Create New Video**
-   - Step 1: Select a **recipient** from the list (real prospects from CSV/DB)
-   - Step 2: **Upload** an MP4/MOV
-   - Step 3: **Generate** → wait for “Create landing page” → in the **Email Snippet** panel: **Open Gmail** (prefilled compose), **Copy link**, **Mark as Sent**
-   - Open the **share link** in an **incognito** window (no login) → video plays; click **Forward to the right person** → fill name/email/note → **Send**
-   - Back in CRM → **Videos** → click that video → **detail**: “Forwarded to …” section and timeline entry “Forward submitted: {name} ({email})”
-   - Optional: open share link in new tab → play + CTA → events show in **Videos** → detail (views, clicks, watch %, activity timeline)
+## What users can do
 
-5. **Sanity**
-   - Open [http://localhost:3000/ping](http://localhost:3000/ping) → JSON `{ "ok": true, "ping": "pong" }`
+### Accounts
+- browse companies and contacts
+- search by company, person, title or email
+- open contact details
+- jump to email, LinkedIn or company websites
 
----
+### Personalized video
+- choose a prospect
+- upload MP4 / MOV content
+- generate a public share link
+- create a preview
+- mark a video as sent
 
-## Demo Runbook (quick path to “it works”)
+### Engagement
+- track page views
+- track playback
+- record 25 / 50 / 75 / 100% progress
+- capture CTA clicks
+- show engagement history on the video record
 
-### 1. Install deps
+### Recipient handoff
+The public experience can also capture a "forward to the right person" action, allowing the workflow to learn when an initial contact redirects the outreach internally.
+
+## Why I built it
+
+The interesting design problem was not the video player itself. It was connecting several moments that normally live in separate tools:
+
+**prospect → personalized content → outreach → viewing behavior → follow-up**
+
+That makes this a service-design and systems-design project as much as a UI project.
+
+## Technical architecture
+
+- Next.js / React / TypeScript
+- Supabase Postgres
+- Supabase Storage for persistent media
+- authenticated CRM surfaces
+- public tokenized share routes
+- event-based engagement tracking
+- Vercel-compatible deployment
+- local/demo fallback mode
+
+## Production considerations explored
+
+The prototype includes work around:
+
+- persistent vs local media storage
+- public share links without authentication
+- signed URLs for private video storage
+- environment-based deployment behavior
+- server-side admin / seed workflows
+- event analytics
+- invite-only access
+- graceful handling of features that require writable server storage
+
+## Local development
 
 ```bash
 npm install
-```
-
-### 2. Seed data
-
-```bash
-# Load Twill #100.csv into DB (place CSV at project root first)
-curl -X POST http://localhost:3000/api/prospects/seed
-# Or after dev is running: npm run seed:demo (adds demo people + sample videos)
-npm run seed:demo
-```
-
-Optional: `npm run seed:prospects` writes `public/prospects.json` for fallback when API has no data.
-
-### 3. Env
-
-Create `.env.local`:
-
-- **DEMO_MODE=true**, **NEXT_PUBLIC_DEMO_MODE=true** — any email/password login
-- **USE_LOCAL_VIDEOS=true** — SQLite + local uploads for videos
-
-### 4. Run dev
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Log in → **Accounts** (real prospects) or **Videos** (create → share link → track).
-
-**If you see "Unable to connect" in the browser:** the dev server is not running. In a terminal (Terminal.app, iTerm, or VS Code/Cursor’s terminal), from the project root run `npm run dev`, wait until you see "Ready" or "compiled", then open or refresh [http://localhost:3000](http://localhost:3000). If `npm run dev` fails with a `uv_interface_addresses` or network error, run it in a normal system terminal (not in a restricted/sandboxed environment).
-
-### 5. Create a video
-
-1. **Videos** → **Create New Video**
-2. Select recipient → Upload MP4/MOV → **Generate**
-3. Copy share link, **Mark as Sent**
-4. Open share link in new tab (no login); play + CTA → events show in **Videos** → detail
-
-### 6. Vercel
-
-On Vercel (read-only FS), GIF generation is disabled; the app still runs and shows: “GIF generation disabled in this environment. Video is still shareable.”
-
-### 6b. How to run the GIF pipeline self-test
-
-Use this to confirm GIF generation works (e.g. on Render):
-
-1. **Add a tiny MP4** at `public/sample.mp4` (a few seconds is enough).
-2. **Call the endpoint** with your admin secret (same as seed):
-   ```bash
-   curl -H "x-admin-secret: YOUR_ADMIN_SECRET" "https://your-app.onrender.com/api/videos/self-test-gif"
-   ```
-   Or with Bearer token: `Authorization: Bearer YOUR_ADMIN_SECRET`.
-3. **Success:** JSON with `ok: true`, `gif_url`, `thumbnail_url`, `codec`, `duration_seconds`.
-4. **No sample file:** 404 with instructions to add `public/sample.mp4`.
-5. **Failure:** 500 with `code: GIF_GEN_FAILED`; check server logs for ffmpeg stderr.
-
-### 7. Video storage: Supabase (recommended for production)
-
-For **persistent** video hosting (past videos accessible forever), use **Supabase Storage** instead of local filesystem. Do **not** set `USE_LOCAL_VIDEOS=true` on Vercel.
-
-#### Buckets (create in Supabase Dashboard → Storage)
-
-| Bucket   | Purpose              | Public? | Notes |
-|----------|----------------------|--------|--------|
-| `videos` | MP4/MOV/WebM files   | Optional | Private + signed URLs (default), or public for simpler setup |
-| `gifs`   | GIF previews         | Yes (recommended) | Used for landing previews |
-
-#### Postgres table `videos` (reference)
-
-Store **references** to Storage; paths are relative to the bucket:
-
-- `video_path` — Storage path in `videos` bucket (e.g. `{user_id}/{uuid}.mp4`)
-- `gif_path` — Storage path in `gifs` bucket (e.g. `{video_id}.gif`)
-- `public_token` — Share URL token used in `/share/[token]`
-
-Other columns: `owner_user_id`, `title`, `status`, `recipient_name`, `recipient_company`, `recipient_email`, `cta_type`, `cta_url`, `cta_label`, `created_at`, `sent_at`, `stats_*`, etc.
-
-#### Env vars (set in Vercel)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes (for Supabase) | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes (for Supabase) | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes (for Supabase) | Service role key (server-only; uploads, signed URLs) |
-| `ADMIN_TOKEN` | Yes (production) | Secret token for admin APIs (invite-user, etc.). Use in header `x-admin-token`. |
-| `SEED_TOKEN` | Yes (to seed) | Secret token for `POST /api/admin/seed-prospects`. Use in header `x-seed-token`. |
-| `ADMIN_EMAILS` | No | Comma-separated emails that can see "Invite teammate" in Settings and call invite API. |
-| `USE_LOCAL_VIDEOS` | No | Set to `true` only for **local/demo** (SQLite + `public/uploads`). Omit or `false` on Vercel. |
-| `NEXT_PUBLIC_SUPABASE_VIDEOS_BUCKET_PUBLIC` | No | Set to `true` to use **public** video URLs instead of signed URLs (simpler; bucket must be public). |
-
-#### Share page behavior
-
-- **Local** (`USE_LOCAL_VIDEOS=true`): `/share/[token]` resolves via SQLite slug; video is served from `public/uploads/...`.
-- **Supabase**: `/share/[token]` resolves by `public_token`, then serves the video via **signed URL** (private bucket) or **public URL** (if `NEXT_PUBLIC_SUPABASE_VIDEOS_BUCKET_PUBLIC=true`). No login required.
-
-#### Local fallback
-
-- `USE_LOCAL_VIDEOS=true` + `DEMO_MODE` = SQLite + `public/uploads` for demos. Works on your machine; **does not persist on Vercel** (read-only FS).
-
-#### Quick check: which backend am I using?
-
-| If you see … | You’re on … |
-|--------------|-------------|
-| `USE_LOCAL_VIDEOS=true` in env, or code writing to `public/uploads` | **Local** (SQLite + filesystem). Fine for demo; does not persist on Vercel. |
-| `admin.storage.from("videos").upload(...)` and no `USE_LOCAL_VIDEOS` | **Supabase Storage**. Videos persist; share page uses signed or public URL. |
-
-#### Supabase setup: schema + storage (canonical)
-
-1. **Run the migration SQL**  
-   - Open [Supabase Dashboard](https://supabase.com/dashboard) → your project → **SQL Editor**.  
-   - Copy the contents of **`supabase/migrations/000_bootstrap_public_videos.sql`** and run it.  
-   - This creates the `public.videos` and `public.video_events` tables (with `video_path`, `gif_path`, `public_token`, etc.).  
-   - **If you see "Could not find the table 'public.videos' in the schema cache"** → run this bootstrap migration; the app will create Storage buckets automatically.
-
-2. **Create Storage buckets**  
-   - Go to **Storage** in the dashboard.  
-   - Create bucket **`videos`**: private (recommended; app uses signed URLs) or public for demo.  
-   - Create bucket **`gifs`**: public is fine.
-
-3. **Public routes (no auth)**  
-   Middleware already allows: `/share/*`, `/api/public/*`, `/figma-test`, `/ping`, `/login`.
-
-4. **Confirm flow**  
-   - Create video in CRM → upload file → copy share link.  
-   - Open share link in incognito → video plays (signed URL) → events recorded → stats visible in `/videos/[id]`.
+The project supports a local demo mode and a Supabase-backed environment for persistent data and media.
 
 ---
 
-## Deploy checklist (production-ready for Vercel + Michelle)
-
-1. **Apply migrations in Supabase**  
-   - Supabase Dashboard → **SQL Editor**.  
-   - Run **`supabase/migrations/000_bootstrap_public_videos.sql`** first (creates `public.videos` and `public.video_events`).  
-   - Then run `supabase/migrations/001_accounts_people.sql` (accounts + people) if you use Leads.
-
-2. **Set Vercel env vars**  
-   - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL  
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key  
-   - `SUPABASE_SERVICE_ROLE_KEY` — Service role key  
-   - `ADMIN_TOKEN` — secret for admin APIs (e.g. invite)  
-   - `SEED_TOKEN` — secret for seed endpoint  
-   - `ADMIN_EMAILS` — comma-separated emails that can invite teammates (e.g. `you@company.com,michelle@company.com`)
-
-3. **Deploy to Vercel**  
-   - Push to Git; connect repo to Vercel; deploy.  
-   - Check **Build** passes (`npm run build`).  
-   - Visit `GET https://your-app.vercel.app/api/health` — should return `{ ok: true, env: { ... } }` when all required vars are set.
-
-4. **Seed prospects once**  
-   - Place **Twill #100.csv** in project root (or in `data/` or `public/` as `Twill_100.csv`).  
-   - Then run (replace `YOUR_SEED_TOKEN` and your deployment URL):
-
-   ```bash
-   curl -X POST https://your-app.vercel.app/api/admin/seed-prospects \
-     -H "x-seed-token: YOUR_SEED_TOKEN" \
-     -H "Content-Type: application/json"
-   ```
-
-   - Response: `{ ok: true, inserted: { accounts, people }, updated: { ... }, rowsProcessed }`.
-
-5. **Invite a user (e.g. Michelle)**  
-   - From server/curl (with admin token):
-
-   ```bash
-   curl -X POST https://your-app.vercel.app/api/admin/invite-user \
-     -H "x-admin-token: YOUR_ADMIN_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{"email":"michelle@example.com"}'
-   ```
-
-   - Response includes `inviteLink` (and optionally `tempPassword`). Send Michelle the invite link; she sets her password and can sign in.  
-   - Or: log in as an admin (email in `ADMIN_EMAILS`), go to **Settings** → **Team** → **Invite teammate**, enter email, copy the returned link.
-
-6. **Confirm /accounts**  
-   - Log in → **Accounts**. Table should show companies from the CSV with domain, tier, status, score, and first contact; side panel shows full account and people with live website / LinkedIn / mailto links.
-
-### Vercel env vars (exact list)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service role key (server-only) |
-| `ADMIN_TOKEN` | Yes | Secret for `x-admin-token` (invite-user, etc.) |
-| `SEED_TOKEN` | Yes | Secret for `x-seed-token` (seed-prospects) |
-| `ADMIN_EMAILS` | No | Comma-separated emails that can invite teammates |
-
-### Files changed (mega prompt deliverables)
-
-- **D1 (Vercel hardening):** `app/api/health/route.ts`, `middleware.ts`, `app/layout.tsx` (unchanged; already correct).
-- **D2 (Supabase + seed):** `supabase/migrations/001_accounts_people.sql`, `002_videos_events.sql`, `lib/csv-parse.ts`, `app/api/admin/seed-prospects/route.ts`, `app/api/accounts/route.ts`, `app/api/accounts/[id]/route.ts`, `figma/pages/Accounts.tsx`, `figma/components/AccountSidePanel.tsx`.
-- **D3 (Invite-only):** `app/api/admin/invite-user/route.ts`, `app/api/admin/am-i-admin/route.ts`, `app/api/invite-teammate/route.ts`, `figma/pages/Settings.tsx` (Invite teammate section), `app/login/LoginClient.tsx` (signup removed).
-- **Build/routes:** `app/api/videos/create/route.ts` (duplicate vars removed), `app/api/videos/upload/route.ts` (duplicate `videoId` removed), `app/ping/page.tsx` removed (conflict with `app/ping/route.ts`).
-
----
-
-## Acceptance checklist (A + B)
-
-### A) Prospects from CSV
-
-- [x] Parse **Twill #100.csv** into DB via `POST /api/prospects/seed` (or JSON fallback via `npm run seed:prospects` → `public/prospects.json`)
-- [x] **/accounts** shows real rows: company, person, title, email, LinkedIn, website
-- [x] **Links:** email = mailto; LinkedIn + website open in new tab (table row + side panel)
-- [x] **Search** filters by person, company, title, email
-
-### B) Video flow end-to-end
-
-- [x] **Data:** SQLite `people` (prospects), `videos` (prospect_id, slug = share_slug), `events` (video_events)
-- [x] **/videos/create** wizard: (1) Select recipient from prospects (2) Upload mp4/mov (3) Generate → share slug, GIF, DB row (4) Copy link + “Mark as Sent”
-- [x] **/share/[slug]** public (no login): video player + CTA; tracks page_view, play, progress 25/50/75/100, cta_click
-- [x] **/videos** list: cards with recipient, status, date, GIF preview
-- [x] **/videos/[id]** detail: views, clicks, bookings (cta_click), avg watch %; activity timeline from events
-- [x] **Vercel guard:** pages render; GIF generation disabled with clear message when FS read-only
-
----
-
-## Getting Started (detailed)
-
-### Accounts (100 prospects from CSV)
-
-1. Place `Twill #100.csv` at the project root (or use mock data).
-2. Run `npm run seed:prospects` then `npm run dev`.
-3. Accounts page fetches `public/prospects.json`; if missing, uses mock data.
-
-### Development server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Devon Archer**  
+Creative Technologist / Product Designer  
+[Portfolio](https://www.archerdesign.shop/devon) · [GitHub](https://github.com/devon-gif)
